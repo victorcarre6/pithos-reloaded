@@ -365,3 +365,100 @@ réelle. Le profil `seatbelt` de base est la partie coûteuse à dériver ; **d�
 | C3.4 | `opencode/src/tool/shell.ts:280-285,387-457` | Découpage d'une ligne shell en commandes, avec opérateurs et substitutions traités explicitement. | **Écarté** |
 | C3.4 | `opencode/src/agent/subagent-permissions.ts:14-27` | Permissions d'un sous-agent dérivées de celles du parent, jamais élargies. | **Écarté** |
 
+
+
+## Décisions locales — 07:09, socle implémenté
+
+### Frontière réellement publiée
+
+`Workspace(root: Path, *, view=kernel.codeview, trace=journal)` porte une racine
+résolue explicite. La façade satisfait `WorkspacePort` : `splice`, `transaction`,
+`project`. La fonction de module `splice` reste disponible, avec `root` obligatoire
+en keyword-only ; aucune autorité ne se déduit du cwd. Le journal doit être lié
+par son propriétaire avant usage ; les tests injectent les doubles officiels.
+
+`TransactionPort` expose `before`, `last_plan`, le contexte, `splice`, `cas_write`,
+`restore`. Utiliser **`transaction.splice` dans le contexte qui devra restaurer** :
+la transaction sait alors qu'elle a écrit. Une autre transaction obtenue via
+`workspace.splice` est une opération indépendante, pas un contexte imbriqué implicite.
+
+```python
+ws = Workspace(campaign_root)  # journal déjà lié par l'appelant
+with ws.transaction(target) as transaction:
+    fact = transaction.splice(function_name, new_source)
+    # l'appelant vérifie ; une exception restaure automatiquement
+    if verdict_is_red:
+        transaction.restore()
+```
+
+Une sortie normale du contexte conserve la mutation. **Le module ne décide jamais
+si un nœud est vert.** L'appelant doit invoquer `restore()` sur un verdict non vert
+qui ne lève pas d'exception. `cas_write(bytes)` est le primitive bas niveau du
+harness, pas une entrée exposée au modèle ; le chemin modèle passe par `splice` et
+ses gardes AST. Une transaction est mono-usage ; les snapshots restent inspectables
+après sa sortie. Pas de création implicite de cible ou de parents.
+
+### Gardes, représentation et preuves
+
+- Une racine résolue et le chemin canonique sont comparés par composants ; le même
+  `kernel.codeview.classify_repo_path` décide de l'édition et de la projection.
+  Le sanitizer conserve `..` et les préfixes sensibles : le `lstrip("./")` de
+  Villani n'est pas porté, car il masquerait un échappement.
+- Une seule fonction **de premier niveau**, nom exact ; fonctions imbriquées dans
+  son corps permises. Deux définitions de module de même nom, dont une classe,
+  sont ambiguës et refusées. Décorateurs, y compris parenthésés multilignes, inclus
+  dans la plage ; `async def` reste async.
+- Signature compatible conservatrice : mêmes positions, noms utilisables par
+  mots-clés, présence des défauts, keyword-only, variadiques, catégorie sync/async.
+  Renommage des paramètres position-only/variadiques, annotations et valeurs des
+  défauts permis. Une incompatibilité nomme les deux signatures.
+- Markdown admis uniquement comme enveloppe complète ; aucune extraction parmi
+  de la prose. Numérotation admise si toutes les lignes sont préfixées `N: ` avec
+  indices consécutifs (décision 29). Pas de fuzzy matching, de patch ou d'exécution.
+- UTF-8, avec ou sans BOM, seulement ; le cookie d'encodage est vérifié **avant et
+  après** splice. Les octets hors plage sont recollés directement, sans normaliser
+  le module entier. Le premier terminateur de la plage guide l'insertion ; CRLF,
+  LF, CR, fichiers mixtes et absence de newline finale sont couverts.
+- `compile(bytes, filename, "exec", dont_inherit=True)` utilise le compilateur de
+  `py_compile`, sans écrire de `.pyc` et sans exécuter le code objet. Nom de fichier,
+  validateur, classe d'exception et action attendue dans le diagnostic.
+- `SplicePlan` est un contrat Pydantic kernel : octets candidats, `FileFact`, diff
+  relisible et `lines_added` (delta signé). `FileFact` reste celui du kernel :
+  chemin canonique, SHA-256 exacts, plage 1-based inclusive, un remplacement.
+  Les snapshots typés supplémentaires attendus par verifier restent à publier
+  par kernel ; aucun champ local ne se fait passer pour un `Fact` partagé.
+
+### Écriture et conservation
+
+La source candidate est journalisée avant validation ; les octets avant/après
+(hexadécimaux, sans perte) sont journalisés avant staging. Un `emit` autre que
+`True` produit `attempt_not_written` et empêche l'écriture. Aucune source invalide
+n'est corrigée silencieusement ; sa tentative reste dans le journal.
+
+Un temporaire unique dans le même répertoire est écrit, flushé/fsyncé, puis remplacé
+atomiquement ; mode du fichier conservé. Le CAS est contrôlé avant staging puis
+avant rename. Les copies temporaires sont nettoyées ; les données brutes restent
+dans le journal. Une panne de ce journal après mutation n'interdit pas le rollback,
+puisque ses deux états ont déjà été archivés.
+
+Un verrou local couvre comparaison et écriture entre appels coopérants ; il ne
+prétend pas protéger contre un processus extérieur modifiant le filesystem entre
+la dernière comparaison et le rename. La campagne du socle doit rester exclusive.
+La sauvegarde persistante pour SIGKILL, le dépôt fantôme, les feuilles concurrentes
+et le confinement OS restent reportés. Aucun `sandbox-exec`, subprocess, Git,
+réseau, hook de mission ou logique de permission dans ce socle.
+
+### Stack et taille mesurée
+
+Toujours aucune dépendance tierce supplémentaire : stdlib (`ast`, `difflib`, `io`,
+`re`, `tokenize`, `hashlib`, `pathlib`, `os`, `stat`, `tempfile`, `threading`,
+`datetime`, `typing`), contrats Pydantic déjà publiés par kernel, interface publique
+journal. Pytest est déjà déclaré pour les tests.
+
+**388 lignes physiques de production / cible indicative ~200**, notice MIT et
+lignes vides comprises : façade 38, chemins 36, Protocols 27, préparation 125,
+transaction 162. La cible n'est pas relevée. Cet écart est justifié par les gardes
+mesurées du splice binaire (encodage, décorateurs, compilation), l'interface/double
+obligatoires et la transaction qui conserve les preuves avant mutation et rend
+les pannes explicites. Le prototype de dix lignes n'assurait ni staging, ni CAS
+sérialisé, ni confinement de chemin, ni propagation d'un échec de restauration.
