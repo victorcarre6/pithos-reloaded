@@ -1,0 +1,61 @@
+"""Conformité double ↔ implémentation, et les interdits d'import de la frontière modèle."""
+
+import ast
+import inspect
+import sys
+from pathlib import Path
+
+import bridge
+from bridge import Bridge
+
+MODULE_DIR = Path(__file__).resolve().parent
+INTERNAL_MODULES = {path.name for path in MODULE_DIR.parent.iterdir() if path.is_dir()}
+FORBIDDEN = {"engine", "verifier", "campaign", "workspace"}
+
+
+def module_imports() -> set[str]:
+    "Modules importés par le code de `bridge`, tests exclus : la frontière porte sur le module."
+
+    sources = [path for path in MODULE_DIR.glob("*.py") if not path.name.startswith(("test_", "conftest"))]
+    imported = set()
+    for source_path in sources:
+        for node in ast.walk(ast.parse(source_path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                imported.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.level == 0:
+                imported.add(node.module.split(".")[0])
+
+    return imported
+
+
+def test_the_implementation_satisfies_the_protocol():
+    assert isinstance(bridge, Bridge)
+
+
+def test_the_double_satisfies_the_protocol(double):
+    assert isinstance(double("bridge"), Bridge)
+
+
+def test_double_and_implementation_share_every_public_signature(double):
+    bridge_double = double("bridge")
+
+    for name in bridge.__all__:
+        implementation = getattr(bridge, name)
+        if not inspect.isfunction(implementation):
+            continue
+        assert inspect.signature(getattr(bridge_double, name)) == inspect.signature(implementation), name
+
+
+def test_bridge_never_imports_engine_nor_any_module_that_decides():
+    assert module_imports() & FORBIDDEN == set()
+
+
+def test_bridge_imports_only_its_two_dependencies_below_it():
+    assert module_imports() & INTERNAL_MODULES == {"kernel", "journal"}
+
+
+def test_every_declared_dependency_is_stdlib_or_declared_in_requirements():
+    declared = {"httpx", "pydantic"}
+    external = module_imports() - INTERNAL_MODULES - sys.stdlib_module_names
+
+    assert external == declared
