@@ -1,0 +1,97 @@
+# Dépendances du harness Pithos Reloaded.
+#
+# Ce fichier DÉCLARE les dépendances avec leurs bornes majeures. Il ne les fige pas :
+# le choix `pip` étant sans lock, `pip freeze > requirements.lock` après chaque
+# changement d'environnement est ce qui rend une campagne rejouable.
+#   → docs/ARCHITECTURE.md § Stack récapitulative
+#
+# Chaque ligne se justifie par la ligne **Stack** d'un src/<module>/MODULE.md.
+# Une dépendance non déclarée dans la stack d'un MODULE.md fait rejeter le code
+# de ce module (AGENTS.md § 6, « Ce qui te fera rejeter »).
+#
+# Environnement : virtualenv pyenv `pithos`, Python 3.12.9. `.python-version` à la
+# racine le sélectionne à l'entrée du répertoire.
+#
+#   pyenv activate pithos
+#   python -V                 # doit afficher : Python 3.12.9
+#   pip install -r requirements.txt
+
+
+# ---------------------------------------------------------------------------
+# Socle — nécessaires dès kernel, pour la tranche verticale jusqu'au « premier vert »
+# ---------------------------------------------------------------------------
+
+# contrats, énumérations fermées, sérialisation — kernel, bridge, verifier, engine,
+# campaign, refinery. Le socle du projet : les six contraintes dures passent par des
+# modèles Pydantic.
+pydantic>=2.9,<3
+
+# frontière modèle : POST bloquant sur /v1/chat/completions, timeout 300 s — bridge.
+# Aussi l'API Telegram — broker. Porté de villani/openai_client.py:212-234.
+# Pas de package `openai`, pas de package `ollama`, pas de LangChain.
+httpx>=0.27,<1
+
+# génération d'entrées et surtout SHRINKING des contre-exemples — verifier.
+# Le modèle ne touche jamais Hypothesis : il nomme une relation, le harness
+# choisit la stratégie dans un dict fermé.
+hypothesis>=6.100,<7
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+# lanceur de tests du harness. À ne pas confondre avec l'exécution des invariants,
+# qui passe par script rendu + subprocess — ni pytest programmatique, ni exec.
+pytest>=8,<9
+
+
+# ---------------------------------------------------------------------------
+# À partir de P2/P4 — moteur et CLI
+# ---------------------------------------------------------------------------
+
+# enveloppe stricte autour du cycle de vie des tâches — engine/flow.py, ~40 L.
+# Prefect ne possède rien d'autre : l'état du domaine reste dans tree.json.
+#
+# NOTE : engine/MODULE.md exige que `walk` passe « sans Prefect installé ». Cet
+# invariant se teste par graphe d'imports (comme les trois règles d'import de
+# AGENTS.md § 3), PAS en désinstallant Prefect de l'environnement.
+prefect>=3,<4
+
+# point d'entrée CLI — qui ne contient jamais la logique métier.
+typer>=0.12,<1
+
+
+# ---------------------------------------------------------------------------
+# À partir de P5 — observatory, processus séparé, lecture seule
+# ---------------------------------------------------------------------------
+
+# API d'agrégats, ~550 L. Pas de DuckDB, pas de SQLite, pas de collecteur permanent :
+# l'observatory relit les JSONL append-only du journal.
+fastapi>=0.115,<1
+
+# serveur ASGI pour l'API ci-dessus. Volontairement sans l'extra [standard] :
+# un dashboard local en lecture seule n'a besoin ni d'uvloop ni de watchfiles.
+uvicorn>=0.30,<1
+
+
+# ---------------------------------------------------------------------------
+# Explicitement HORS de ce fichier — ne pas ajouter sans amender ARCHITECTURE.md
+# ---------------------------------------------------------------------------
+#
+#   fastmcp                  le PRODUIT, dans un dépôt Git séparé. Le harness ne dépend
+#                            jamais de FastMCP — il lit le contrat d'un outil depuis un
+#                            modèle Pydantic déclaré.  → ARCHITECTURE.md:868
+#   langgraph                mode `agentic` différé.  → ROADMAP.md § Différé
+#   langchain-mcp-adapters   idem.
+#   openai, ollama           le client est porté de Villani, 23 lignes d'httpx.
+#   langchain, instructor    la contrainte de décodage est appliquée côté serveur.
+#   outlines                 idem.
+#   GitPython                broker passe par subprocess + la CLI `gh`.
+#   mutmut, cosmic-ray       la mutation est un ast.NodeTransformer maison, ~80 L.
+#   duckdb, sqlite-utils     les traces sont du JSONL append-only + flock/fsync.
+#   ruff, black, mypy        décision assumée : ni linter, ni typechecker.
+#   uv, poetry               venv + pip + hatchling.
+#
+# hatchling n'est pas ici : c'est le backend de build, il va dans le
+# [build-system] de pyproject.toml, pas dans les dépendances d'exécution.

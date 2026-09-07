@@ -1,0 +1,35 @@
+# git — commits proposés pour `engine`
+
+**Aucun agent ne commite.** Ce fichier **propose** ; un humain **exécute**. Voir
+[`AGENTS.md`](../../AGENTS.md) § 7.
+
+Append-only : on ajoute une proposition, on ne réécrit pas les précédentes. Une proposition exécutée est
+**marquée**, jamais supprimée.
+
+**Rappels de format** — un commit une intention · chemins explicites, jamais `gaa` · message
+`engine: <ce que ça fait>` en minuscules, sans point final · uniquement du travail dont les tests passent ·
+uniquement `src/engine/` et `tests/doubles/engine.py`.
+
+---
+
+_Aucune proposition. Le module n'a pas encore de code._
+
+<!-- Gabarit d'une proposition — copie ce bloc, ne le supprime pas.
+
+## Proposé le JJ:MM — <titre court>
+
+**Intention** : une phrase — ce que ce commit fait, et rien d'autre.
+
+```sh
+ga src/engine/<fichier_a>.py \
+   src/engine/<fichier_b>.py \
+   tests/doubles/engine.py
+gcmsg "engine: <ce que ça fait>"
+```
+
+**Contient** : …
+**Ne contient pas** : …
+**Tests verts** : …
+**Exécuté** : —
+
+-->

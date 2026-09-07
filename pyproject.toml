@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pithos-reloaded"
+version = "0.0.0"
+description = "Expérience d'autonomie logicielle sur modèle local souverain."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+
+# Les dépendances se déclarent dans requirements.txt, avec la justification de chaque
+# ligne par la rubrique **Stack** d'un src/<module>/MODULE.md. Ce champ reste vide
+# tant que le paquet n'est pas distribué : le harness s'exécute depuis le venv.
+dependencies = []
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "src/kernel",
+    "src/journal",
+    "src/verifier",
+    "src/bridge",
+    "src/workspace",
+    "src/engine",
+    "src/campaign",
+    "src/lifecycle",
+    "src/broker",
+    "src/observatory",
+    "src/refinery",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "src"]
+pythonpath = ["src"]
+
+# --- Environnement ---------------------------------------------------------
+#
+# Python 3.12.9, dans le virtualenv pyenv `pithos`. `.python-version` à la racine
+# le sélectionne automatiquement à l'entrée du répertoire.
+#
+#   pyenv activate pithos
+#   pip install -r requirements.txt
+#
+# 3.12 est un choix, pas un défaut : PEP 701 y rend légaux les guillemets identiques
+# imbriqués dans une f-string, et PEP 695 la syntaxe de paramètres de type. Aucune
+# syntaxe 3.13+ ne doit apparaître dans le code.
+#
+# Pas de section [tool.ruff] ni [tool.mypy] : ni linter, ni typechecker.
+# → docs/ARCHITECTURE.md § Stack récapitulative
