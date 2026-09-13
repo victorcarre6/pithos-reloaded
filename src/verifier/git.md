@@ -168,3 +168,46 @@ des artefacts autonomes et les contrats nécessaires à la suite ; actualisation
 **Tests verts** : **108 passed in 20.09s**, Python 3.12.9 / venv pithos ; code inchangé depuis ce contrôle.
 **Vérification de forme** : les 21 fichiers relus par `git diff --no-index --check` sans diagnostic.
 **Exécuté** : —
+
+## Proposé le 12:09 — preuve de changement liée à la double gate
+
+**Intention** : vérifier les faits de source et de dépôt avant de publier un reçu d'effet confirmé.
+
+```sh
+ga src/verifier/models.py \
+   src/verifier/gates.py \
+   src/verifier/protocol.py \
+   src/verifier/receipt.py \
+   src/verifier/__init__.py \
+   src/verifier/test_facts.py \
+   tests/doubles/verifier.py \
+   src/verifier/MODULE.md \
+   src/verifier/STATE.md \
+   src/verifier/git.md
+gcmsg "verifier: lie les faits de changement à la double gate et au reçu"
+```
+
+**Contient** : croisement pur des octets/SHA/plage/chemins/hunks Git, budget restant, Protocol Verifier et double, protection contre substitution de faits, refus de persistance.
+**Ne contient pas** : schema_conform, exécution de walk ni source générée par un modèle.
+**Tests verts** : 134 tests verifier/contrat/frontière en 21,23 s ; suite globale 1 365 passed, 3 skipped, 7 warnings en 38,19 s. Les deux fichiers partagés de contrat/frontière ont leur proposition dans tests/git.md.
+**Exécuté** : —
+
+## Proposé le 13:09 — admettre le critère avant génération
+
+**Intention** : Exposer une admission pure qui bloque les critères inexécutables avant tout appel modèle.
+
+```sh
+ga src/verifier/gates.py \
+   src/verifier/__init__.py \
+   src/verifier/protocol.py \
+   src/verifier/test_preflight.py \
+   tests/doubles/verifier.py \
+   src/verifier/MODULE.md \
+   src/verifier/STATE.md \
+   src/verifier/git.md
+gcmsg "verifier: admet le critère avant une proposition candidate"
+```
+
+**Contient** : Préflight sans I/O ; symbole absent, relation manquante et domaine incompatible refusés. Prérequis : lot gate de faits du 12:09.
+**Tests verts** : src/verifier/test_preflight.py, tests/contracts/test_verifier_double.py, tests/boundaries/test_verifier.py. Suite complète **1 402 passed, 3 skipped, 7 warnings en 40,64 s** dans Python 3.12.9/pithos.
+**Exécuté** : —
