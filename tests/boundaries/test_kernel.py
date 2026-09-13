@@ -1,9 +1,13 @@
-"""Contrôle kernel, à installer dans tests/boundaries/ après autorisation de périmètre."""
+"""Frontières kernel : imports du socle et lectures déclarées."""
 
 import ast
-from pathlib import Path
 
 import pytest
+
+from tests.graph import SRC, Source, assert_clean, check_imports, forbidden_calls
+
+
+ROOT = SRC / "kernel"
 
 
 EXTERNAL_IMPORTS = {"ast", "enum", "keyword", "pathlib", "typing", "pydantic"}
@@ -15,27 +19,11 @@ IO_METHODS = {
 
 
 def violations(source, filename):
-    """Contrôle les imports directs et les appels d'I/O du code kernel."""
-
-    issues = []
-    for node in ast.walk(ast.parse(source)):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name.split(".")[0] not in EXTERNAL_IMPORTS:
-                    issues.append((node.lineno, "import", alias.name))
-        if isinstance(node, ast.ImportFrom):
-            root = (node.module or "").split(".")[0]
-            if node.level:
-                allowed = node.level == 1 and root in LOCAL_IMPORTS
-            else:
-                allowed = root in EXTERNAL_IMPORTS
-            if not allowed:
-                issues.append((node.lineno, "import", root))
-        if not isinstance(node, ast.Call):
-            continue
+    parsed = Source(source)
+    issues = check_imports(parsed, allowed=set(), local=LOCAL_IMPORTS, roots=EXTERNAL_IMPORTS)
+    issues.extend(forbidden_calls(parsed, {"eval", "exec", "compile", "__import__", "open"}))
+    for node in parsed.calls:
         function = node.func
-        if isinstance(function, ast.Name) and function.id in {"eval", "exec", "compile", "__import__", "open"}:
-            issues.append((node.lineno, "execution", function.id))
         if not isinstance(function, ast.Attribute) or function.attr not in IO_METHODS:
             continue
         if filename != "codeview.py":
@@ -50,17 +38,8 @@ def violations(source, filename):
     return issues
 
 
-def test_kernel_import_graph_and_io_boundaries():
-    root = Path(__file__).resolve().parents[2]
-    paths = (root / "src/kernel").rglob("*.py")
-    production = [path for path in paths if not path.name.startswith("test_")]
-    assert production  # un dossier vide ne constitue pas une preuve
-    issues = {}
-    for path in production:
-        found = violations(path.read_text(), path.name)
-        if found:
-            issues[str(path)] = found
-    assert issues == {}
+def test_production_boundary():
+    assert_clean(ROOT, lambda source, path: violations(source, path.as_posix()))
 
 
 @pytest.mark.parametrize("source,filename", [

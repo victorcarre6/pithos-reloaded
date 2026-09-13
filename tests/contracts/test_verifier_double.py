@@ -1,6 +1,5 @@
-"""Contrat partagé à déplacer dans tests/contracts/ après autorisation de périmètre."""
+"""Contrat partagé entre implémentation et double."""
 
-import importlib.util
 import inspect
 from pathlib import Path
 import subprocess
@@ -9,15 +8,7 @@ import pytest
 
 import verifier
 from kernel.facts import RecordKey
-
-
-def _load_double(name):
-    root = Path(__file__).resolve().parents[2]
-    spec = importlib.util.spec_from_file_location(f"contract_{name}_double", root / "tests/doubles" / f"{name}.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    return module
+from tests.support import load_double as _load_double
 
 
 @pytest.mark.parametrize("kind,relation,symbols,before,after,expected", [
@@ -39,12 +30,7 @@ def test_same_protocol_and_scenarios(tmp_path, monkeypatch, kind, relation, symb
         assert actual.reason == "tautology"
     key = RecordKey(kind="verification", value=("mission-1", "node-1", 1, relation))
     memory = memory_module.MemoryVerifier([(criterion, actual)], [(key, None)])
-    assert isinstance(verifier, verifier.SourceVerifier)
-    assert isinstance(memory, verifier.SourceVerifier)
-    for method in ("check_sources", "emit_receipt"):
-        real = inspect.signature(getattr(verifier, method))
-        fake = inspect.signature(getattr(memory, method))
-        assert list(real.parameters) == list(fake.parameters)
+    assert_protocol_and_signatures(memory)
 
     # aucun accès disque ni lancement, y compris avec un faux reçu absent
     def forbidden(*args, **kwargs):
@@ -63,3 +49,20 @@ def test_double_rejects_unscripted_criterion(tmp_path):
     memory = _load_double("verifier").MemoryVerifier([])
     with pytest.raises(KeyError):
         memory.check_sources(kernel_double.criterion(), "before", "after", artifact_root=tmp_path, timeout=10)
+
+
+def assert_protocol_and_signatures(memory):
+    assert isinstance(verifier, verifier.Verifier)
+    assert isinstance(memory, verifier.Verifier)
+    for method in ("preflight", "check_sources", "run", "emit_receipt"):
+        real = inspect.signature(getattr(verifier, method))
+        fake = inspect.signature(getattr(memory, method))
+        assert list(real.parameters) == list(fake.parameters)
+
+
+def test_signature_mutation_reaches_the_contract(monkeypatch):
+    memory = _load_double("verifier").MemoryVerifier([])
+    assert_protocol_and_signatures(memory)
+    monkeypatch.setattr(memory, "check_sources", lambda wrong: None)
+    with pytest.raises(AssertionError):
+        assert_protocol_and_signatures(memory)

@@ -1,4 +1,4 @@
-"""Frontières verifier ; tests partagés à déplacer après autorisation de périmètre."""
+"""Frontières verifier : imports et I/O limités aux artefacts produits."""
 
 import ast
 from pathlib import Path
@@ -9,58 +9,40 @@ import pytest
 
 from kernel.contracts import Criterion
 from verifier.runner import execute
+from tests.graph import SRC, Source, assert_clean, check_imports, forbidden_calls
+
+
+ROOT = SRC / "verifier"
 
 
 ALLOWED = {
     "ast", "copy", "datetime", "hashlib", "hypothesis", "json", "math", "os", "pathlib",
-    "signal", "subprocess", "sys", "tempfile", "textwrap", "time", "typing", "pydantic", "journal", "kernel",
+    "re", "signal", "subprocess", "sys", "tempfile", "textwrap", "time", "typing", "pydantic", "journal", "kernel",
 }
 LOCAL = {"gates", "models", "protocol", "receipt", "domains", "runner", "relations", "mutation"}
 FILESYSTEM = {"open", "read_text", "read_bytes", "write_text", "write_bytes", "unlink", "mkdir", "rmdir", "resolve", "glob", "rglob", "iterdir"}
 
 
 def violations(source, module):
-    errors = []
-    for node in ast.walk(ast.parse(source)):
-        if isinstance(node, ast.Import):
-            names = [alias.name for alias in node.names]
-        elif isinstance(node, ast.ImportFrom):
-            if node.level:
-                if node.level != 1 or node.module not in LOCAL:
-                    errors.append("relative import")
-                continue
-            names = [node.module]
-            if node.module == "kernel":
-                names = [f"kernel.{alias.name}" for alias in node.names]
-        else:
-            names = []
-        for name in names:
-            if name.split(".")[0] not in ALLOWED:
-                errors.append(f"forbidden import: {name}")
-            if name.startswith("kernel.") and name not in {"kernel.contracts", "kernel.errors", "kernel.facts"}:
-                errors.append("kernel implementation")
-            if name.startswith("journal."):
-                errors.append("journal implementation")
-        if not isinstance(node, ast.Call):
+    parsed = Source(source)
+    allowed = {"journal", "kernel.contracts", "kernel.errors", "kernel.facts"}
+    roots = ALLOWED - {"journal", "kernel"}
+    errors = check_imports(parsed, allowed=allowed, local=LOCAL, roots=roots)
+    errors.extend(forbidden_calls(parsed, {"exec", "eval", "__import__", "open"}))
+    for node in parsed.calls:
+        if not isinstance(node.func, ast.Attribute):
             continue
-        if isinstance(node.func, ast.Name) and node.func.id in {"exec", "eval", "__import__", "open"}:
-            errors.append("dynamic execution or bare I/O")
-        if isinstance(node.func, ast.Attribute):
-            if node.func.attr in FILESYSTEM and module != "runner":
-                errors.append("I/O outside runner")
-            if node.func.attr in {"Popen", "run", "call", "check_call", "check_output", "system", "popen"}:
-                if module != "runner" or node.func.attr != "Popen":
-                    errors.append("unowned process")
+        if node.func.attr in FILESYSTEM and module != "runner":
+            errors.append("I/O outside runner")
+        if node.func.attr in {"Popen", "run", "call", "check_call", "check_output", "system", "popen"}:
+            if module != "runner" or node.func.attr != "Popen":
+                errors.append("unowned process")
 
     return errors
 
 
-def test_production_import_graph():
-    root = Path(__file__).resolve().parents[2]
-    for path in (root / "src/verifier").glob("*.py"):
-        if path.name.startswith("test_") or path.name == "conftest.py":
-            continue
-        assert violations(path.read_text(), path.stem) == [], path
+def test_production_boundary():
+    assert_clean(ROOT, lambda source, path: violations(source, path.with_suffix("").as_posix()))
 
 
 @pytest.mark.parametrize("source", [

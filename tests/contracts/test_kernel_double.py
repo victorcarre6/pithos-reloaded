@@ -1,6 +1,5 @@
-"""Contrat kernel, à installer dans tests/contracts/ après autorisation de périmètre."""
+"""Contrat kernel : codeview et constructeurs du double."""
 
-import importlib.util
 import inspect
 from pathlib import Path
 
@@ -11,15 +10,12 @@ from kernel import codeview
 from kernel.contracts import Criterion, Event, Node
 from kernel.facts import FileFact, Receipt
 from kernel.protocol import CodeView
+from tests.support import load_double
 
 
 @pytest.fixture
 def double():
-    root = Path(__file__).resolve().parents[2]
-    spec = importlib.util.spec_from_file_location("kernel_double", root / "tests/doubles/kernel.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_double("kernel")
 
 
 def test_double_and_implementation_satisfy_protocol(double):
@@ -105,3 +101,10 @@ def test_memory_preserves_read_errors(double, tmp_path):
             reader.symbols(missing)
         with pytest.raises(FileNotFoundError):
             reader.snippet(missing, 1, 1)
+
+
+def test_signature_mutation_reaches_the_contract(double, monkeypatch):
+    test_double_and_implementation_satisfy_protocol(double)
+    monkeypatch.setattr(double.MemoryCodeView, "symbols", lambda self, wrong: None)
+    with pytest.raises(AssertionError):
+        test_double_and_implementation_satisfy_protocol(double)

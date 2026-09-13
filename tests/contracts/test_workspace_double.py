@@ -1,6 +1,5 @@
-"""Corpus partagé disque/mémoire, déplaçable dans tests/contracts après exception."""
+"""Corpus partagé disque/mémoire."""
 
-import importlib.util
 import inspect
 from hashlib import sha256
 from pathlib import Path
@@ -10,15 +9,7 @@ import pytest
 from kernel.errors import PithosError
 from kernel.facts import FileFact
 from workspace import StaleContentError, TransactionPort, Workspace, WorkspacePort
-
-
-def load_double(name):
-    root = Path(__file__).resolve().parents[2]
-    spec = importlib.util.spec_from_file_location(f"workspace_contract_{name}", root / f"tests/doubles/{name}.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    return module
+from tests.support import load_double
 
 
 @pytest.fixture(params=["disk", "memory"])
@@ -131,3 +122,13 @@ def test_memory_double_has_no_io(monkeypatch):
         transaction.splice("f", "def f(x): return 7")
         transaction.restore()
     assert workspace.project(path, 1, 1) == "def f(x): return x\n"
+
+
+def test_signature_mutation_reaches_the_contract(tmp_path, monkeypatch):
+    files = {tmp_path / "tool.py": b"def f(x): return x\n"}
+    memory = load_double("workspace").MemoryWorkspace(tmp_path, files)
+    backend = (memory, None, None)
+    test_protocol_and_signatures(backend)
+    monkeypatch.setattr(memory, "splice", lambda wrong: None)
+    with pytest.raises(AssertionError):
+        test_protocol_and_signatures(backend)
