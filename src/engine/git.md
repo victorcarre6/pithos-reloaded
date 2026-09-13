@@ -168,3 +168,36 @@ gcmsg "engine: exécute une nano-étape avec reçu durable"
 **Contient** : Deps et NanoEngine, intention/CAS, transaction, admission, candidat, faits, gate, reçu et publication. Le marcheur complet reste ouvert. Prérequis : lots bridge candidat et verifier preflight.
 **Tests verts** : src/engine/test_attempt.py, tests/contracts/test_engine_double.py, tests/boundaries/test_engine.py. Suite complète **1 402 passed, 3 skipped, 7 warnings en 40,64 s** dans Python 3.12.9/pithos.
 **Exécuté** : —
+
+
+## Proposé le 13:09 — conserver chaque rapport de vérification
+
+**Intention** : Conserver le verdict du verifier avant toute décision de publication.
+
+```sh
+ga src/engine/attempt.py \
+   src/engine/test_attempt.py \
+   src/engine/MODULE.md \
+   src/engine/STATE.md \
+   src/engine/git.md
+gcmsg "engine: conserve les rapports de vérification avant décision"
+```
+
+**Contient** : Événement durable verification_report avec RecordKey, sans facts ni reçu synthétique ; restauration lorsque sa trace échoue. Transmission de la provenance de capacité au Deadline de l'appel. Prérequis : proposition run_attempt.
+**Tests verts** : src/engine/test_attempt.py, tests/contracts/test_engine_double.py, tests/boundaries/test_engine.py ; rapport relu dans selftest-wo3aa7e5. Suite complète : **1 444 passed, 3 skipped, 7 warnings en 43,83 s**, Python 3.12.9/pithos ; contrôle des onze STATE vert.
+**Exécuté** : —
+
+
+## Proposé le 13:09 — annoncer les omissions dans leur budget
+
+**Intention** : Rendre les omissions visibles dans le contexte sans dépasser son budget.
+
+```sh
+ga src/engine/context.py \
+   src/engine/test_context.py
+gcmsg "engine: budgète la notice des omissions de contexte"
+```
+
+**Contient** : Comptes par raison fermée, séparateur compris dans le coût estimé, recalcul après chaque éviction FIFO, aucune fuite du texte exclu. Décision et preuves dans MODULE.md/STATE.md du lot précédent. Branchement au marcheur encore prévu.
+**Tests verts** : src/engine/test_context.py ; 116 tests engine/contrat/frontière lors de l'incrément. Suite complète : **1 444 passed, 3 skipped, 7 warnings en 43,83 s**, Python 3.12.9/pithos ; contrôle des onze STATE vert.
+**Exécuté** : —
