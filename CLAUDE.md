@@ -5,6 +5,9 @@ seul module**, en lisant deux fichiers et en n'écrivant que dans son répertoir
 
 Ce fichier est le point d'entrée. Lis-le en entier avant toute action.
 
+Une demande explicite de travail transverse suit le § 14. Elle possède son propre point
+de reprise dans `tests/STATE.md` ; elle ne remplace pas le travail métier des agents de module.
+
 ---
 
 ## 1. Le projet en cinq phrases
@@ -28,8 +31,11 @@ valeur d'usage propre ; **la trajectoire est l'objet d'étude.**
 Elles priment sur tout le reste, y compris sur ce que dit un `MODULE.md`. Si un `MODULE.md` semble les
 contredire, **arrête-toi et signale-le** dans `STATE.md` plutôt que de trancher.
 
-1. **Aucun littéral produit par le modèle n'atteint l'exécution.** Le modèle n'émet que des noms de symboles
-   existants et des choix dans des énumérations fermées.
+1. **Le modèle ne produit ni valeur attendue, ni entrée de validation, ni commande d'exécution.**
+   Pour les critères, il choisit uniquement des symboles existants et des énumérations fermées.
+   **Amendement approuvé le 12:09** : il peut proposer le code candidat d'une fonction existante,
+   via `new_source` revalidé ; workspace applique le splice et verifier exécute les copies sous les
+   invariants du harness. Le code candidat ne peut modifier ni le critère ni les entrées de validation.
 2. **Un nœud non vérifiable ne s'exécute jamais.** Il se scinde, ou il est marqué `blocked`.
 3. **Une nano-étape non verte restaure son fichier cible à l'octet près.**
 4. **Une mission a un temps mural dur.** À l'expiration elle finalise ce qui est vert et reste reprenable ;
@@ -71,6 +77,18 @@ celle qui parle au modèle.** La troisième rend la contrainte dure n°5 mécani
 | 9 | `broker` | **la seule sortie de données** : Git + Telegram | 1-2 | ~550 L |
 | 10 | `observatory` | lecture seule, processus séparé, agrégats | 1-2 | ~550 L + 700 L web |
 | 11 | `refinery` | politique d'auto-amélioration, **`enabled: false`** | 1-7 | ~100 L |
+
+**Unité des cibles — amendement du 11:09.** Les cibles globales du tableau sont des **lignes
+portant du code**, hors lignes blanches, commentaires et docstrings reconnues par l'AST.
+Les littéraux affectés à des variables restent comptés, même multilignes. Chaque ligne est
+comptée une seule fois ; les lignes physiques restent affichées séparément. Le comptage inclut
+`__init__.py` et les sous-paquets Python, exclut les tests, les `conftest.py` et les doubles.
+La cible web est distincte. Les jalons partiels des `MODULE.md` ne remplacent pas la cible globale.
+
+Les cibles numériques restent inchangées. Un dépassement doit porter dans `STATE.md` un
+**Plafond justifié** chiffré et une **Justification** précise ; le contrôle refuse toute croissance
+au-delà. Une nouvelle hausse exige une nouvelle justification, jamais une correction silencieuse
+du compteur. Commande de mesure et de contrôle : `python -m tests.state_check`.
 
 **Niveaux de dépendance :**
 
@@ -128,11 +146,26 @@ irreproductible et te fera rejeter (§ 6).
 1. lire STATE.md → prendre « Prochaine action »
 2. écrire le test d'abord, quand la nature de l'étape le permet
 3. implémenter le minimum qui le fait passer
-4. lancer les tests du module dans le venv `pithos` (jamais ceux des autres)
+4. lancer les tests du module et ses corpus de contrat/frontière dans le venv `pithos`
 5. mettre à jour STATE.md — toujours, même si l'étape a échoué
 6. proposer le commit dans git.md quand une unité cohérente est terminée — SANS l'exécuter (§ 7)
 7. recommencer
 ```
+
+À la fin de chaque unité livrable, lancer **aussi la suite complète à la racine**, sans écrire
+de bytecode, et consigner le résultat dans `STATE.md` :
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python -m pytest -q -p no:cacheprovider
+PYTHONDONTWRITEBYTECODE=1 python -m tests.state_check
+```
+
+Cette vérification mesure la collecte et la coexistence des modules. Un échec chez un voisin
+est signalé avec le test exact ; il n'autorise pas à modifier son implémentation. Si la sandbox
+empêche un test local réel, conserver l'échec et demander l'exécution autorisée adaptée, sans
+remplacer cette preuve par un skip. Les paquets `src/<module>/` gardent leur `__init__.py`.
+Les doubles partagés sont chargés par `tests/support.py` et les fixtures du `conftest.py` racine ;
+les `conftest.py` de module ne gardent que leurs besoins spécifiques.
 
 **Mets à jour `STATE.md` à chaque unité de travail terminée**, pas seulement à la fin de la session.
 
@@ -312,7 +345,8 @@ Un par module, à la racine du répertoire du module. **Tu le maintiens. Il n'es
 
 **Statut** : non commencé | en cours | bloqué | fini
 **Mise à jour** : JJ:MM
-**Lignes** : <n> / <cible du MODULE.md>
+**Lignes** : <n> code / <cible globale> cible · <n> physiques
+**Empreinte** : <sha256 de production donné par tests.state_check.measure>
 
 ## Prochaine action
 Une phrase, immédiatement exécutable par un agent sans contexte.
@@ -346,7 +380,11 @@ Choix d'implémentation pris ici, qu'un successeur doit connaître et ne doit pa
    **Les résultats négatifs y restent** : un timeout, une incompatibilité, une mesure défavorable sont des
    preuves, pas des brouillons à effacer.
 2. **Un blocage n'est jamais supprimé, il est résolu** : on ajoute la résolution dans la ligne.
-3. **« Prochaine action » est réécrite à chaque mise à jour.** C'est le seul champ mutable en place.
+3. **Les champs courants sont mutables en place** : statut, date, lignes, empreinte et « Prochaine action ».
+   Le statut d'en-tête prend exactement une des quatre valeurs du gabarit ; les explications vont dans
+   le journal. Les anciennes mesures restent dans les entrées historiques. Le contrôle mécanique
+   compare code, lignes physiques, cible et empreinte, valide la date et refuse « non commencé »
+   s'il existe du code. Il **ne déduit pas** « fini » ou « bloqué » à partir d'un compteur.
 
 ---
 
@@ -385,7 +423,13 @@ Un module est fini quand **tous** ces points sont vrais, et pas avant :
 - [ ] Tous les items de la rubrique *Fini quand* du `MODULE.md` passent.
 - [ ] Le double dans `tests/doubles/<module>.py` existe et satisfait le même `Protocol` que
       l'implémentation, vérifié par un test dans `tests/contracts/`.
-- [ ] Le test de graphe d'imports de `tests/boundaries/` passe pour ce module.
+- [ ] Le test de graphe d'imports de `tests/boundaries/` passe pour ce module, son balayage est non vide
+      et une violation injectée dans chaque fichier d'une copie le rend rouge. Un test de `violations()`
+      seul ne suffit pas. Le scanner partagé est `tests/graph.py` ; les règles restent explicites dans
+      le corpus du module. Les chemins complets évitent les collisions entre `__init__.py`.
+- [ ] La suite complète à la racine passe dans `pithos`, sans collision de collecte ; les skips et leurs
+      raisons sont consignés. Une signature de double volontairement divergente doit être détectée
+      par le contrôle de contrat utilisé, pas seulement par un test de présence de méthode.
 - [ ] Le nombre de lignes est **au niveau ou en dessous** de la cible, ou l'écart est justifié par écrit
       dans `STATE.md` (le ratchet est **shrink-only** : une cible ne remonte jamais sans justification).
 - [ ] `STATE.md` est à jour, statut `fini`, avec « Prochaine action » indiquant le module suivant.
@@ -423,3 +467,37 @@ réintroduire une reprise `Écarté`, ou marquer `fini` un module dont un item d
 | Les ~800 reprises retenues, avec source et verdict | `resources/IMPORT_REPORT.md` |
 | Les neuf dépôts : taille, licence, fiabilité d'extraction | `resources/MANIFEST.md` |
 | Les commits que tu proposes, et ceux déjà exécutés | `src/<module>/git.md` (§ 7) |
+| État, mesures et propositions de la passe transverse | `tests/STATE.md`, `tests/git.md` |
+
+---
+
+## 14. Passe transverse
+
+Ce rôle est activé par une demande explicite de l'utilisateur concernant le dépôt, son protocole,
+ses tests partagés ou une liste transverse telle que `TEMPO.md`. Aucun agent de module ne s'attribue
+ce rôle pour contourner son périmètre.
+
+**Périmètre** : `tests/`, `conftest.py` racine, `AGENTS.md`, son miroir `CLAUDE.md`, `.gitignore`, `TEMPO.md`,
+`docs/QUICK_CATCH.md`, `docs/ROADMAP.md` et le journal de `docs/EXPLANATIONS.md`. Pour la collecte
+et la mutualisation, les `src/*/conftest.py` et les `__init__.py` de paquet peuvent être adaptés.
+Les en-têtes et prochaines actions des `src/*/STATE.md` sont alignés sur le code constaté ; les
+résultats s'ajoutent au journal et les blocages résolus restent archivés avec leur résolution.
+Toute modification du protocole est recopiée dans `CLAUDE.md` dans le même geste.
+La mise en version des documents existants `docs/*.md` et `resources/*.md` peut être proposée
+avec leurs chemins explicites ; cette possibilité n'autorise pas à réécrire le cadrage produit
+ni à intégrer les dépôts de code tiers de `resources/`.
+
+**Interdits** : modifier l'implémentation métier ou un `MODULE.md`, cocher une case métier de
+« Fini quand » à la place de son agent, annoncer un module fini sur une suite seulement verte,
+élever le niveau de preuve au-delà de l'observation, ou lancer une commande Git d'écriture (§ 7).
+Un besoin de modification métier devient une prochaine action précise du module concerné.
+
+**Mémoire** : `tests/STATE.md` contient le plan courant, les preuves positives et négatives et la
+prochaine action. `tests/git.md` contient les propositions append-only, avec chemins explicites,
+y compris pour les fichiers racine et documentaires autorisés ici. Les observations initiales
+de `TEMPO.md` sont conservées ; les décisions et leur résultat leur sont ajoutés.
+
+**Livraison** : contrôles ciblés, suite complète, contrôle des en-têtes et revue du diff. Les sondes
+d'injection travaillent sur copies jetables et ne modifient jamais le code du worktree. Les données
+brutes et les caches déjà suivis ne sont pas supprimés par une passe de nettoyage ; le retrait des
+caches de l'index reste une proposition de commande explicite pour l'humain.
