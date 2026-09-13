@@ -22,9 +22,10 @@ docs/EXPLANATIONS.md     33 décisions et leur raisonnement, puis le journal de 
 docs/ARCHITECTURE.md     les 11 modules, la méthode de développement, la stack
 docs/ROADMAP.md          spikes, jalon « premier vert », puis P0 à P9
 
-resources/MANIFEST.md    les 9 dépôts de référence : taille, licence, fiabilité d'extraction
+resources/MANIFEST.md    les 11 dépôts de référence : taille, licence, fiabilité d'extraction
 resources/IMPORT_REPORT.md  ~800 reprises retenues sur ~1 180 : Villani (A), Pi (B), Kilo (C), Ouroboros (D),
-                            Prime Agent (E), Unsloth (F), OpenHands (G), SWE-agent (H), Langfuse (I)
+                            Prime Agent (E), Unsloth (F), OpenHands (G), SWE-agent (H), Langfuse (I),
+                            GVS5H (J), Graphify (K) — intégrations sélectives
 ```
 
 **Onze modules, dépendances strictement descendantes.** Trois règles portent la découpe, et chacune est un
@@ -41,7 +42,52 @@ pyenv activate pithos                    # Python 3.12.9, figé dans pyproject.t
 pip install -r requirements.txt
 ```
 
-**État : cadrage terminé, aucune implémentation.** Voir `docs/ROADMAP.md` § S — sept spikes conditionnent
-l'architecture — puis § M, le scaffold et le jalon « premier vert ».
+**État au 13:09 : les onze modules contiennent du code ; aucun n'est déclaré fini.** La suite passe
+**1 444 tests** dans Python 3.12.9 / pithos (3 skips, 7 warnings), plus **8 tests web** et le build Vite.
+Le code candidat est autorisé sous
+validation du harness ; une nano-étape transactionnelle passe les scénarios vert et rollback sur disque.
+Le [banc audio](experiments/visualizer/README.md) adapte l'idée du précédent visualiseur. Sa sonde Ollama
+réelle passe ; le dépôt dédié est initialisé. Le trial réel `trial-44kcg6ig` a été **refusé sur tautology**,
+sans reçu, avec restauration exacte. Le dashboard expose son état publié, ses cinq gates et ses traces.
+Le marcheur complet, la reprise après interruption et le jalon de mission restent à livrer.
+Voir [QUICK_CATCH.md](docs/QUICK_CATCH.md) pour l'état mesuré et les prochaines actions.
+
+## Observatoire local
+
+Deux terminaux depuis la racine, dans `pithos` et avec **Node 26+** :
+
+```sh
+# API de lecture, 127.0.0.1:8823
+PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python -m observatory --runs-root experiments/visualizer/runs
+```
+
+```sh
+# dépendances web verrouillées, puis build servi sur 127.0.0.1:5173
+npm --prefix src/observatory/web ci
+npm --prefix src/observatory/web run build
+npm --prefix src/observatory/web run preview
+```
+
+Ouvrir [le dashboard](http://127.0.0.1:5173). Lecture seule, actualisation toutes les 10 secondes,
+essais réels séparés des selftests/probes et des refus d'admission. Artefacts et chronologie paginés ;
+tokens mesurés séparés des estimations, capacité avec provenance. Aucun collecteur ni service externe.
+Tests et proxy HTTP vérifiés ; validation visuelle encore à faire, aucun navigateur accessible à l'agent.
 
 Cible : **~5 230 lignes de harness Python**, dont une part majoritaire portée plutôt qu'écrite.
+
+
+## Lancer Pithos avec le TUI
+
+Depuis la racine, dans le venv `pithos` :
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python src/main.py selftest --case green
+PITHOS_CONTEXT_WINDOW=16384 PYTHONDONTWRITEBYTECODE=1 python src/main.py probe
+PITHOS_CONTEXT_WINDOW=16384 PYTHONDONTWRITEBYTECODE=1 python src/main.py trial \
+  --repo experiments/visualizer/workspace --seconds 180
+```
+
+L'entrée unique affiche quatre panneaux fixes : **Projet**, **Inférence**, **Travail actuel** et
+**Activité récente**. Les arguments du banc restent disponibles. `--no-tui` désactive le suivi ;
+une sortie redirigée conserve automatiquement le JSON seul. Les prérequis du dépôt cible et les
+limites de cette nano-étape sont décrits dans le [README du banc](experiments/visualizer/README.md).
