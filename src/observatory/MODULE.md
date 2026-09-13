@@ -12,14 +12,20 @@
 **Niveau de dépendance** : 2. **Processus séparé du harness.**
 **Stack** : FastAPI · React 19 + Vite. **Pas de DuckDB, pas de SQLite, pas de collecteur permanent.**
 
+Complément du 13:09 : `json`, `hashlib`, `argparse` de la stdlib pour les sidecars,
+leur rattachement par empreinte et le lancement local. Web : TypeScript, React DOM,
+plugin React de Vite ; tests Vitest + jsdom et types React. Dépendances web déclarées
+dans `web/package.json` et verrouillées dans `web/package-lock.json` avant livraison.
+
 ## 1. Autorité
 
 `observatory` est en **lecture seule**. Il n'écrit jamais dans l'état du harness, ne touche pas l'arbre, ne
 lance pas de mission. Il lit les JSONL **par `journal`** — un format, un parseur — les indexe en mémoire au
 démarrage, suit les fichiers par `mtime`, et sert des agrégats.
 
-**Le web est déjà écrit** : ~700 L React 19 + Vite portés de v1, six tests jsdom verts, design fait. Restent
-**la vue d'arbre et le rebranchement de la source**.
+**Le web est porté et rebranché depuis le 13:09** : catalogue paginé, arbre publié, preuves de refus,
+contexte, métriques, timeline et aperçus d'artefacts. Huit tests jsdom et le build passent sous Node 26+.
+La lecture HTTP locale est vérifiée ; le contrôle visuel attend un navigateur accessible.
 
 ## 2. Interface publique
 
@@ -28,11 +34,17 @@ démarrage, suit les fichiers par `mtime`, et sert des agrégats.
 def build_index(logs_root: Path) -> Index:
     "Index mémoire reconstruit depuis le disque au démarrage. Pas de collecteur permanent."
 
+def build_run_index(runs_root: Path) -> Index:
+    "Collection directe du banc, sans sous-répertoire missions imposé."
+
 # api/routes.py — catalogue et détail SÉPARÉS
 GET /missions                  -> catalogue (léger)
 GET /missions/{id}             -> détail
 GET /missions/{id}/tree        -> arbre aplati en lignes
 GET /missions/{id}/artifacts   -> manifeste (présence, taille)
+GET /missions/{id}/artifact    -> aperçu texte autorisé, paginé, au plus 2 Mo
+GET /missions/{id}/events      -> événements bruts paginés, lus par journal
+GET /stats/attempts            -> modes, états publiés, erreurs d'admission, reçus et rollback
 GET /stats/daily               -> statistiques journalières
 GET /stats/tools               -> appels, résultats, erreurs, volume par outil
 GET /stats/context             -> occupation du contexte et marge restante par appel
@@ -96,7 +108,7 @@ casse jamais la mission.** Ici elle est triviale : `observatory` est un autre pr
 | `api/routes.py` | routes de lecture, manifeste d'artefacts, digest par famille | 130 |
 | `api/stats.py` | les cinq agrégats + les cinq indicateurs | 150 |
 | `api/render.py` | aplatissement d'arbre, `status_text` compact réutilisé par le CLI et Telegram | 100 |
-| `web/` | **porté de v1** — reste la vue d'arbre et le rebranchement | ~700 |
+| `web/` | **porté de v1** — arbre, preuves et métriques rebranchés, huit tests jsdom | ~700 |
 
 ## 8. Critères de socle que ce module rend verts
 
@@ -318,3 +330,22 @@ casse jamais la mission.** Ici elle est triviale : `observatory` est un autre pr
 | I4.8 | `packages/shared/src/utils/IORepresentation/parseIO.ts:3` | **Le compactage est une tentative explicite ; son échec rend l'original.** | **Adapter** |
 | I4.8 | `packages/shared/src/utils/json.ts:9` | **Réparation textuelle de pseudo-JSON** — à écarter de l'admission : remplacer `True`/`False`/`None` et les apostrophes **peut changer une chaîne valide métier**. | **Adapter** |
 
+## Décisions locales — 13:09
+
+- `build_index` conserve la convention logs/missions ; `build_run_index` lit une collection directe.
+  `python -m observatory --runs-root …` rend ce choix explicite, sans détection heuristique.
+- Le snapshot `tree.json` publié prime sur les événements antérieurs ; une intention n'est pas
+  une transition acquise. `result.json` apporte le diagnostic du banc sans fabriquer d'événement.
+- Les reçus sont comptés uniquement dans les événements de validation durables. Les rapports
+  `verification_report` restent inspectables même après refus. Les anciennes gates sont rattachées
+  par empreinte de source ; un opérateur de mutation absent reste inconnu.
+- Les artefacts sont limités aux noms produits par le runner, sous la racine du run, sans traversée
+  ni lien symbolique. L'aperçu UTF-8 est paginé ; au-delà de 2 Mo il est refusé explicitement.
+- La capacité de contexte provient de bridge ou de la sonde conservée dans le résultat historique.
+  Sa provenance accompagne la valeur ; sans observation, capacité et pression restent inconnues.
+- Les références J/GVS5H et K/Graphify sont adaptées sans dépendance tierce : historique de
+  vérification, métriques sourcées, notices d'omission budgétées et contrôle des interfaces documentées.
+  Les décisions détaillées figurent dans `resources/IMPORT_REPORT.md`, sections J et K.
+- Le web React porte les traces comme texte, avec polling annulable, pagination et erreurs visibles.
+  Ses 373 lignes physiques de production dans src/ restent sous la cible distincte de 700 ;
+  configuration, tests, lock et dépendances sont exclus de ce compte. La preuve visuelle reste ouverte.
