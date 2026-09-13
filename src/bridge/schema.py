@@ -1,6 +1,10 @@
 """Normalisation d'un modèle Pydantic en JSON Schema qu'une grammaire de décodage sait appliquer."""
 
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, Field, StrictStr, create_model
+
+from kernel.contracts import Contract, Criterion
 
 # sous-ensemble de mots-clés réellement supporté, déclaré plutôt que supposé
 SUPPORTED_KEYWORDS = frozenset({
@@ -79,3 +83,17 @@ def normalize_schema(model: type[BaseModel]) -> dict:
         raise ValueError(f"bridge: {model.__name__} ne produit pas un objet à propriétés")
 
     return schema
+
+
+def candidate_model(function_name: str) -> type[BaseModel]:
+    """Ferme la proposition sur un symbole fourni par le harness et 8 000 caractères de source."""
+
+    # même grammaire de symbole que les critères ; sa présence relève de l'admission ast
+    Criterion(relation="total", symbols=[function_name], domain="small_ints")
+
+    return create_model(
+        "SourceCandidate",
+        __base__=Contract,
+        function_name=(Literal[function_name], ...),
+        new_source=(StrictStr, Field(min_length=1, max_length=8000)),
+    )

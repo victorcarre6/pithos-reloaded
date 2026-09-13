@@ -121,6 +121,11 @@ def test_the_effective_payload_is_recorded_for_the_rejection_rate_to_be_measurab
     assert recorded["outcome"] == "completed"
     assert recorded["sampling"] == {"temperature": 0.3, "top_p": 0.95, "top_k": 20}
     assert recorded["endpoint"].endswith("/v1/chat/completions")
+    assert recorded["context_window"] == ROOMY.context_window
+    assert recorded["context_provenance"] == "asserted"
+    assert recorded["elapsed_seconds"] >= 0
+    assert "context_window" not in route.requests[0]
+    assert "elapsed_seconds" not in route.requests[0]
 
 
 def test_a_refused_budget_is_recorded_too(route, double, monkeypatch):
@@ -130,6 +135,7 @@ def test_a_refused_budget_is_recorded_too(route, double, monkeypatch):
     call(SCHEMA, "sys", "user", Deadline(seconds=5.0, context_window=64, reserved_output=512))
 
     assert journal_double.events[-1].payload["outcome"] == "budget_refused"
+    assert journal_double.events[-1].payload["context_window"] == 64
 
 
 def test_the_base_url_gains_v1_idempotently():

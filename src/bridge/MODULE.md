@@ -13,6 +13,11 @@
 **Stack** : `httpx` · Pydantic v2. **Ni LangChain, ni `instructor`, ni `outlines`** — la contrainte de
 décodage est appliquée côté serveur.
 
+**Instrumentation locale — 13:09.** `time.monotonic` (stdlib) mesure la durée de chaque
+appel, préflight compris. `Deadline.context_provenance` accompagne la capacité fournie
+(par défaut `asserted` pour un appelant qui fournit un entier sans preuve).
+La trace consigne capacité, provenance et durée ; le payload HTTP reste inchangé.
+
 ## 1. Autorité
 
 **250 lignes qui méritent leur nom : c'est le point d'application de la contrainte dure n°1.** On doit
@@ -94,7 +99,7 @@ fenêtre porte sa provenance en enum à trois valeurs — `confirmed` / `asserte
 
 ## 6. Critères de socle que ce module rend verts
 
-- **Aucun littéral émis par le modèle ne traverse la frontière modèle → exécution.**
+- **Aucun attendu, entrée de validation ou commande émis par le modèle ne rejoint l’exécution ; seul le code candidat revalidé est autorisé (amendement approuvé du 12:09).**
 - **Le schéma envoyé au modèle est normalisé et testé** : `$defs`/`$ref` résolus, bornes explicites, vérifié
   contre le backend réel **avant toute campagne**.
 - **La sortie du modèle est revalidée localement contre le schéma exact envoyé** avant toute exécution.
@@ -340,3 +345,25 @@ réponse est *pas toujours*) mais *« quel est le taux de rejet de la revalidati
 | D3.4 | `our/local_model.py:618-700` | `test_tool_calling` — **sonde de capacité** d'un serveur local : chat de base, tool call réel, `tokens_per_sec` mesuré. Ne jamais supposer une capacité : la sonder. | **Écarté** |
 | D3.4 | `our/capability_evidence.py:204-248` | `route_fingerprint` — credentials **exclus** de l'identité de route ; headers beta/routing inclus. | **Écarté** |
 
+
+## Décisions locales — 12:09 : code candidat autorisé
+
+`candidate_model(function_name)` construit un modèle strict à deux champs : un nom constant fourni
+par le harness et `new_source` non vide, borné à 8 000 caractères. La présence du symbole et le maintien
+de signature appartiennent à l'admission AST et à workspace. Ni critère, ni attendu, ni commande n'entrent
+dans cet objet. Le prompt dédié est `prompt/candidate.md` ; `prompt/ling.md` reste celui des critères.
+Pydantic create_model et typing.Literal sont utilisés dans la stack existante, sans installation.
+
+Le journal conserve maintenant contenu généré intégral, thinking et requête effective ; body_excerpt
+reste un aperçu de 500 caractères. Une troncature reste inexploitable, mais ses octets textuels ne sont
+plus perdus dans cet aperçu. Ce changement ne garantit pas l'acquittement du journal par le transport :
+l'orchestrateur doit persister sa propre intention/réponse et refuser la mutation si cette écriture échoue.
+
+### 13:09 — sonde Ollama observée
+
+Le banc audio a constaté 128 tokens entièrement consommés par le thinking et une sortie length.
+La consigne nomme désormais les trois champs fermés sans paraphrase ; la réserve de sonde vaut
+1 024 tokens, toujours bornée à 60 secondes et refusée en cas de troncature. La première réponse
+réelle après ce réglage a rendu 358 tokens, stop et un Criterion conforme. Ce n'est pas un taux
+de fiabilité. La route réelle n'expose pas sa fenêtre ; num_ctx=16384 a été lu par ollama show
+puis transmis via PITHOS_CONTEXT_WINDOW avec provenance asserted. Aucun repli implicite ajouté.

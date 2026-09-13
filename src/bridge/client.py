@@ -4,6 +4,8 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import StrEnum
+from time import monotonic
+from typing import Literal
 from urllib.parse import urlparse
 
 import httpx
@@ -41,6 +43,7 @@ class Deadline:
     seconds: float
     context_window: int
     reserved_output: int
+    context_provenance: Literal["confirmed", "asserted", "unknown"] = "asserted"
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,7 +116,7 @@ def _split_thinking(message: dict) -> tuple[str, str]:
     return content.strip(), thinking
 
 
-def _record(payload: dict, response: RawResponse, excerpt: str) -> None:
+def _record(payload: dict, response: RawResponse, excerpt: str, deadline: Deadline, elapsed: float) -> None:
     "Consigne le payload effectif et l'issue : c'est ce qui rend le taux de rejet mesurable."
 
     fact = {
@@ -125,8 +128,14 @@ def _record(payload: dict, response: RawResponse, excerpt: str) -> None:
         "outcome": response.outcome.value,
         "raw_stop_reason": response.raw_stop_reason,
         "prompt_estimate": response.prompt_estimate,
+        "context_window": deadline.context_window,
+        "context_provenance": deadline.context_provenance,
+        "elapsed_seconds": elapsed,
         "usage": response.usage,
         "body_excerpt": excerpt[:BODY_EXCERPT_CHARS],
+        "raw_content": excerpt,
+        "thinking": response.thinking,
+        "request": payload,
     }
 
     journal.emit(Event(
@@ -144,13 +153,14 @@ def call(schema: dict, system: str, user: str, deadline: Deadline) -> RawRespons
     Aucun repli sur la contrainte de décodage, aucun retry implicite : l'issue typée suffit.
     """
 
+    started = monotonic()
     estimate = estimate_tokens(system) + estimate_tokens(user)
     payload = build_payload(schema, system, user, deadline)
 
     # la place de la sortie est réservée AVANT l'appel : un contrat qui ne rentre pas ne part pas
     if estimate + deadline.reserved_output > deadline.context_window:
         refused = RawResponse(Outcome.budget_refused, "", "", "", {}, estimate)
-        _record(payload, refused, "")
+        _record(payload, refused, "", deadline, monotonic() - started)
 
         return refused
 
@@ -162,7 +172,8 @@ def call(schema: dict, system: str, user: str, deadline: Deadline) -> RawRespons
             body = answer.json()
     except (httpx.HTTPError, ValueError) as failure:
         failed = RawResponse(Outcome.transport_error, "", "", "", {}, estimate)
-        _record(payload, failed, f"{type(failure).__name__}: {failure}")
+        excerpt = f"{type(failure).__name__}: {failure}"
+        _record(payload, failed, excerpt, deadline, monotonic() - started)
 
         return failed
 
@@ -174,6 +185,6 @@ def call(schema: dict, system: str, user: str, deadline: Deadline) -> RawRespons
     # une génération tronquée n'est pas une génération terminée : rien d'exploitable n'en sort
     exploitable = content if outcome is Outcome.completed else ""
     response = RawResponse(outcome, exploitable, thinking, raw_stop_reason, body.get("usage") or {}, estimate)
-    _record(payload, response, content)
+    _record(payload, response, content, deadline, monotonic() - started)
 
     return response

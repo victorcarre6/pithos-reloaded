@@ -11,7 +11,7 @@ import json
 from bridge.client import Deadline, Outcome, RawResponse
 from bridge.probe import Capability, Provenance
 from bridge.revalidate import revalidate  # fonctions pures : un double en divergerait sans rien
-from bridge.schema import normalize_schema  # prouver de plus
+from bridge.schema import candidate_model, normalize_schema  # prouver de plus
 
 queue: list[RawResponse] = []
 calls: list[dict] = []

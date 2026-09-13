@@ -15,9 +15,9 @@ from .schema import normalize_schema
 WINDOW_ENV = "PITHOS_CONTEXT_WINDOW"
 MODELS_TIMEOUT_SEC = 5.0
 PROBE_TIMEOUT_SEC = 60.0
-PROBE_OUTPUT_TOKENS = 128
+PROBE_OUTPUT_TOKENS = 1024
 PROMPT_PATH = Path(__file__).parent / "prompt" / "ling.md"
-PROBE_TASK = "Name the relation stating that the function `parse` is total over small integers."
+PROBE_TASK = "Return a criterion with relation total, symbols [parse], and domain small_ints. Include all three fields."
 
 
 class Provenance(StrEnum):
@@ -81,7 +81,7 @@ def probe() -> Capability:
         return Capability(provenance, 0, False, "n_ctx_train illisible sur /v1/models")
 
     schema = normalize_schema(Criterion)
-    deadline = Deadline(PROBE_TIMEOUT_SEC, window, PROBE_OUTPUT_TOKENS)
+    deadline = Deadline(PROBE_TIMEOUT_SEC, window, PROBE_OUTPUT_TOKENS, provenance.value)
     response = call(schema, system_prompt(), PROBE_TASK, deadline)
     if response.outcome is not Outcome.completed:
         return Capability(provenance, window, False, f"appel de sonde: {response.outcome.value}")

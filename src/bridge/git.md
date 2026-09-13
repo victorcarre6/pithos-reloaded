@@ -143,3 +143,61 @@ gcmsg "bridge: <ce que ça fait>"
 **Exécuté** : —
 
 -->
+
+## Proposé le 12:09 — contrat de code candidat autorisé
+
+**Intention** : accepter une source candidate strictement liée à la fonction choisie par le harness.
+
+```sh
+ga src/bridge/schema.py \
+   src/bridge/client.py \
+   src/bridge/__init__.py \
+   src/bridge/prompt/candidate.md \
+   src/bridge/test_candidate.py \
+   tests/doubles/bridge.py \
+   src/bridge/MODULE.md \
+   src/bridge/STATE.md \
+   src/bridge/git.md
+gcmsg "bridge: encadre et conserve les propositions de code candidat"
+```
+
+**Contient** : schéma strict et symbole constant, prompt dédié, archivage intégral de la réponse et de la requête.
+**Tests verts** : 38 passed/1 skipped ciblés ; 1 377 passed/3 skipped/7 warnings au global.
+**Exécuté** : —
+
+## Proposé le 13:09 — adapter la sonde à la troncature mesurée
+
+**Intention** : Obtenir une réponse de sonde complète du modèle local avec une réserve bornée adaptée au thinking observé.
+
+```sh
+ga src/bridge/probe.py \
+   src/bridge/MODULE.md \
+   src/bridge/STATE.md \
+   src/bridge/git.md
+gcmsg "bridge: ajuste la sonde après troncature réelle"
+```
+
+**Contient** : Consigne explicite des trois champs et réserve 1 024 sous 60 secondes. Les refus length et schéma invalide restent inchangés ; fenêtre fournie explicitement comme asserted.
+**Tests verts** : src/bridge/test_probe.py ; sonde réelle probe-z20hc14z, 358 tokens de completion et Criterion conforme. Suite complète **1 402 passed, 3 skipped, 7 warnings en 40,64 s** dans Python 3.12.9/pithos.
+**Exécuté** : —
+
+
+## Proposé le 13:09 — sourcer les mesures de contexte
+
+**Intention** : Associer les mesures d'appel à leur capacité déclarée.
+
+```sh
+ga src/bridge/__init__.py \
+   src/bridge/client.py \
+   src/bridge/probe.py \
+   src/bridge/test_client.py \
+   src/bridge/test_candidate.py \
+   src/bridge/MODULE.md \
+   src/bridge/STATE.md \
+   src/bridge/git.md
+gcmsg "bridge: trace la capacité et la durée des appels"
+```
+
+**Contient** : Deadline porte context_provenance ; traces enrichies de capacité, provenance et durée monotone dans les trois issues existantes, sans changement du payload HTTP. Aucun nouveau transport ou retry.
+**Tests verts** : 85 passed, 1 skipped sur bridge/contrat/frontière ; serveur HTTP local autorisé. Suite complète : **1 444 passed, 3 skipped, 7 warnings en 43,83 s**, Python 3.12.9/pithos ; contrôle des onze STATE vert.
+**Exécuté** : —
