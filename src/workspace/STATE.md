@@ -1,12 +1,13 @@
 # STATE — `workspace`
 
-**Statut** : non commencé
-**Mise à jour** : —
-**Lignes** : 0 / ~200 L socle
+**Statut** : en cours
+**Mise à jour** : 12:09
+**Lignes** : 271 code / 200 cible · 398 physiques
+**Empreinte** : fc9a9d76f7e4e576cde82dfb4066fd2fe68efade629a9a0fa83605fe4a53b062
 
 ## Prochaine action
 
-Obtenir l'exception AGENTS § 6 pour déplacer `src/workspace/test_double_contract.py` vers `tests/contracts/test_workspace_double.py` et `src/workspace/test_import_boundaries.py` vers `tests/boundaries/test_workspace.py` ; après autorisation, déplacer ces deux fichiers, relancer les 119 tests workspace avec ces deux chemins explicites, puis consigner `fini` et transmettre à `engine`.
+SourceFact est publié depuis les octets relus de la transaction. Après arbitrage de new_source, raccorder engine aux trois opérations publiques splice/file_fact/source_fact et tester le rollback de tout chemin sans reçu vert durable.
 
 ## Avancement
 
@@ -23,6 +24,24 @@ incompatibilité ou une mesure défavorable sont des preuves. Chaque entrée por
 Ce qui a été fait, ce qui a été mesuré, ce qui a été décidé.
 **Niveau de preuve** : 5 — validé sur double.
 -->
+
+### 10:09 — passe transverse : `tests/boundaries/` et `tests/contracts/` sont peuplés
+
+Écrite par l'agent d'intégration, pas par un agent de module. Ce module n'a **pas** été modifié : seuls
+ses deux tests transverses ont été déplacés à l'emplacement qu'`AGENTS.md` § 11 leur assigne.
+
+**Découvert au passage, et mesuré** : la suite complète du dépôt **n'était pas collectable**. Chaque
+agent ne lançait que `pytest src/<son module>`, vert en isolation ; à l'échelle du dépôt, huit
+`test_import_boundaries.py` et sept `test_double_contract.py` entraient en collision de nom de module
+pytest, parce que `kernel`, `engine` et `lifecycle` n'avaient pas de `__init__.py`. Les trois ont été
+ajoutés, et les quinze fichiers renommés à un nom unique en migrant.
+
+**Mesuré, après la passe** : `pytest -q` à la racine, venv `pithos`, Python 3.12.9 →
+**1215 passed, 3 skipped**. Les onze tests de frontière et les neuf corpus de contrat ont été
+**prouvés mordants** par injection : une violation d'import réelle dans le code livré de chaque module
+rend son test de frontière rouge, et une signature de double divergente rend son contrat rouge.
+
+**Niveau de preuve** : 5 — validé sur double, à l'échelle du dépôt cette fois.
 
 ## Blocages
 
@@ -213,3 +232,60 @@ Aucun skill modifié, aucune commande Git en écriture exécutée.
 `git diff --no-index --check /dev/null <fichier>` sur les **15 fichiers** du périmètre,
 y compris non suivis : **zéro défaut d’espacement**. Statut Git final limité à ces
 15 fichiers workspace ; aucune modification des autres modules ni des dossiers partagés.
+
+
+### 11:09 — mesure de production et en-tête courant
+
+Passe transverse demandée via TEMPO.md. Aucun code métier ni case de livraison modifié.
+Mesure AST/tokenize : **265 lignes de code**, **388 physiques**, cible globale **200**. Sous-paquets et __init__.py inclus ; tests et doubles exclus.
+L’empreinte de l’en-tête couvre les chemins et octets de toute la production.
+La nouvelle métrique ne valide aucun item métier et ne relève aucune cible numérique.
+
+**En-tête antérieur conservé** :
+
+```text
+**Statut** : en cours — code livré et vert, statut corrigé par la passe transverse du 10:09 (il portait `non commencé`)
+**Mise à jour** : —
+**Lignes** : 308 / ~200 L socle — **mesuré par la passe transverse du 10:09** ; l'agent du module ne l'avait pas actualisé
+```
+
+**Prochaine action antérieure, remplacée car périmée** :
+
+L'exception demandée ici a été **accordée et exécutée** par la passe transverse du 10:09 :
+`test_double_contract.py` est devenu `tests/contracts/test_workspace_double.py` et
+`test_import_boundaries.py` est devenu `tests/boundaries/test_workspace.py`. Les deux sont verts, et le
+test de frontière a été prouvé mordant par injection d'un `import subprocess` dans `paths.py`.
+
+Ce qui reste avant `fini` : **une case de « Fini quand » n'est pas cochée**, et le compte mesuré est de
+**308 L pour ~200 L de cible** — l'écart n'est justifié nulle part dans ce fichier, or `AGENTS.md` § 11
+l'exige. Écrire cette justification, ou réduire ; le ratchet est shrink-only.
+
+**Plafond justifié** : 265 code
+**Justification** : Les six gardes AST, le CAS des octets, la restauration transactionnelle et la journalisation avant écriture totalisent 265 lignes de code. Ces protections du fichier cible expliquent les 65 lignes au-delà de 200 ; le confinement reporté reste absent.
+
+**Niveau de preuve : 2** pour la mesure documentaire ; la suite initiale complète du 11:09 a rendu 1 215 passed et 3 skipped hors sandbox. Le détail des nouvelles validations vit dans tests/STATE.md.
+
+### 12:09 — snapshots publics relus depuis la transaction
+
+Six tests rouges ont d’abord constaté source_fact absent du réel et du double. Après ajout au
+TransactionPort : **126 passed en 0,32 s** (module, contrat, frontière). Relecture réelle après
+splice, SHA-256 accordés avec FileFact, BOM/CRLF conservés, snapshot détaché après rollback,
+écriture extérieure observée au lieu de recopier la candidate, accès hors transaction refusé.
+La méthode utilise les gardes de lecture/confinement existantes. Aucune exécution ni génération.
+
+**Plafond justifié** : 271 code
+**Justification** : L’ancien plafond 265 gagne uniquement la relecture publique source_fact et son
+membre de Protocol (6 lignes de code). Ce passage évite aux consommateurs d’inspecter
+before/last_plan internes ou d’inventer une attestation depuis la candidate. Cible 200 inchangée.
+**Niveau de preuve : 5** : filesystem réel et double mémoire, dépendances kernel/journal sur doubles.
+
+### 12:09 — validation globale des snapshots
+
+Suite complète : **1320 passed, 3 skipped, 7 warnings en 34,78 s**, Python 3.12.9 / pithos,
+hors sandbox. La production de SourceFact est transmise au chantier verifier ; broker est suivant.
+
+### 12:09 — preuve finale de la chaîne de faits et de la sélection
+
+Suite complète finale dans **pithos / Python 3.12.9** : **1 367 passed, 3 skipped, 7 warnings en 37,10 s**.
+Les contrôles d'en-têtes STATE et `git diff --check` passent. Aucune dépendance installée, aucun Git d'écriture, aucun bytecode suivi modifié. Les propositions sont dans les git.md ; les contrats transverses ont leur lot dans tests/git.md.
+**Niveau de preuve : 5**, avec subprocess et fichiers de test effectivement exercés. Le marcheur complet et le premier vert avec modèle local restent à démontrer. La source candidate attend l'arbitrage utilisateur.

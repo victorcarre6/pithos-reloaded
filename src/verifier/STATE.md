@@ -1,12 +1,13 @@
 # STATE — `verifier`
 
-**Statut** : non commencé
-**Mise à jour** : —
-**Lignes** : 0 / ~800 L socle / ~950 L cible
+**Statut** : en cours
+**Mise à jour** : 13:09
+**Lignes** : 715 code / 950 cible · 925 physiques
+**Empreinte** : 7ee250899ae6909703b37e29d4a8cde06a776b3e2e9f72aa1dd938b0300e269c
 
 ## Prochaine action
 
-Lire `src/kernel/facts.py` et le double kernel pour vérifier si des snapshots source attestés avant/après et `RepoFact` ont été publiés ; dès qu'ils le sont, implémenter `run(criterion, facts)` en croisant leurs empreintes et chemins sans lire le workspace. Sinon faire trancher la forme de ces faits et la liaison outil → modèle Pydantic déclaré ; les demandes précises figurent dans le point de reprise du 07:09 ci-dessous.
+Le banc audio exerce maintenant run et le reçu avec engine/workspace/journal réels, bridge/Git simulés. Prochain item propre à verifier : définir le binding explicite outil → modèle Pydantic de sortie déclaré pour schema_conform, puis rendre et exécuter cette neuvième relation. L'arbitrage du code candidat est résolu depuis le 12:09.
 
 ## Avancement
 
@@ -23,6 +24,24 @@ incompatibilité ou une mesure défavorable sont des preuves. Chaque entrée por
 Ce qui a été fait, ce qui a été mesuré, ce qui a été décidé.
 **Niveau de preuve** : 5 — validé sur double.
 -->
+
+### 10:09 — passe transverse : `tests/boundaries/` et `tests/contracts/` sont peuplés
+
+Écrite par l'agent d'intégration, pas par un agent de module. Ce module n'a **pas** été modifié : seuls
+ses deux tests transverses ont été déplacés à l'emplacement qu'`AGENTS.md` § 11 leur assigne.
+
+**Découvert au passage, et mesuré** : la suite complète du dépôt **n'était pas collectable**. Chaque
+agent ne lançait que `pytest src/<son module>`, vert en isolation ; à l'échelle du dépôt, huit
+`test_import_boundaries.py` et sept `test_double_contract.py` entraient en collision de nom de module
+pytest, parce que `kernel`, `engine` et `lifecycle` n'avaient pas de `__init__.py`. Les trois ont été
+ajoutés, et les quinze fichiers renommés à un nom unique en migrant.
+
+**Mesuré, après la passe** : `pytest -q` à la racine, venv `pithos`, Python 3.12.9 →
+**1215 passed, 3 skipped**. Les onze tests de frontière et les neuf corpus de contrat ont été
+**prouvés mordants** par injection : une violation d'import réelle dans le code livré de chaque module
+rend son test de frontière rouge, et une signature de double divergente rend son contrat rouge.
+
+**Niveau de preuve** : 5 — validé sur double, à l'échelle du dépôt cette fois.
 
 ## Blocages
 
@@ -52,10 +71,10 @@ _Choix d'implémentation pris ici, qu'un successeur doit connaître et ne doit p
 
 | Quoi | Pourquoi | Ce qui débloquerait | Résolu le |
 |---|---|---|---|
-| `run(criterion, facts)` complet | `kernel.Fact = FileFact` ne porte que des empreintes et une plage ; aucun contenu avant/après, aucun RepoFact. Lire `FileFact.path` violerait la frontière. | Contrat kernel pour les sources attestées avant/après et RepoFact, puis doubles des producteurs. | — |
+| `run(criterion, facts)` complet | `kernel.Fact = FileFact` ne porte que des empreintes et une plage ; aucun contenu avant/après, aucun RepoFact. Lire `FileFact.path` violerait la frontière. | Contrat kernel pour les sources attestées avant/après et RepoFact, puis doubles des producteurs. | **Résolu le 12:09** — contrats et producteurs publiés, gate complète testée. |
 | `schema_conform` | Le modèle Pydantic déclaré du produit n'a aucun champ/règle de liaison à `tool` dans l'interface actuelle. Dériver son schéma des annotations est explicitement exclu. | Définir la liaison outil → modèle de sortie déclaré dans un contrat typé. | — |
 | Reçu durable | `tests/doubles/journal.py` et le Protocol du journal sont absents au démarrage. | Publication de la frontière et du double journal avec `emit` vrai/faux. | — |
-| Emplacement des tests partagés | AGENTS §6 permet seulement les tests locaux et le double ; §11 exige `tests/contracts/` et `tests/boundaries/`. | Autorisation de déposer les tests propres à verifier dans ces deux dossiers. | — |
+| Emplacement des tests partagés | AGENTS §6 permet seulement les tests locaux et le double ; §11 exige `tests/contracts/` et `tests/boundaries/`. | Autorisation de déposer les tests propres à verifier dans ces deux dossiers. | **Résolu le 10:09** — déplacés par la passe transverse ; suite complète verte. |
 | Reprises incompatibles avec les règles dures | La liste de sources inclut purge Kilo, lectures workspace et invocations Git ; elles contredisent append-only et l'autorité du module. | Aucune reprise de ces effets dans verifier ; les principes purs seuls sont applicables. | 06:09 — priorité aux interdits explicites |
 
 **Niveau de preuve** : aucun test exécuté à ce stade.
@@ -158,10 +177,10 @@ Les anciens en-têtes/mesures sont historiques ; ce point et « Prochaine action
 
 | Quoi | Pourquoi | Ce qui débloquerait | Résolu le |
 |---|---|---|---|
-| Gate complète `run(criterion, facts)` | Les seules empreintes FileFact ne permettent pas d'exécuter les états avant/après ; RepoFact absent. | Kernel doit publier des snapshots source bornés, liés aux octets/empreintes avant/après et au chemin FileFact, plus un RepoFact attestant les chemins effectivement modifiés et la complétude du diff/status. Publier les doubles correspondants. | — |
+| Gate complète `run(criterion, facts)` | Les seules empreintes FileFact ne permettent pas d'exécuter les états avant/après ; RepoFact absent. | Kernel doit publier des snapshots source bornés, liés aux octets/empreintes avant/après et au chemin FileFact, plus un RepoFact attestant les chemins effectivement modifiés et la complétude du diff/status. Publier les doubles correspondants. | **Résolu le 12:09** — contrats, producteurs, croisement pur et double sont publiés. |
 | `schema_conform` | Aucune liaison définie entre le symbole outil et son modèle Pydantic explicitement déclaré. | Définir cette liaison dans un fait/contrat approuvé. La source du schéma doit venir du produit, jamais d'un littéral proposé par le modèle ni d'une inférence des annotations. | — |
 | Appelant et reçu final de nœud | La preuve de changement effectif croisée avec RepoFact manque. | Composer les axes dans `run`, puis bloquer mécaniquement si reçu absent. Le reçu actuel annonce expressément son effet non attesté. | — |
-| Placement des deux tests partagés | AGENTS §6 interdit les destinations exigées par §11. | Autorisation pour `tests/contracts/test_verifier_double.py` et `tests/boundaries/test_verifier.py`, ou décision commune sur cette contradiction. Les deux fichiers locaux sont autonomes et déplaçables. | — |
+| Placement des deux tests partagés | AGENTS §6 interdit les destinations exigées par §11. | Autorisation pour `tests/contracts/test_verifier_double.py` et `tests/boundaries/test_verifier.py`, ou décision commune sur cette contradiction. Les deux fichiers locaux sont autonomes et déplaçables. | **Résolu le 10:09** — déplacés par la passe transverse ; suite complète verte. |
 | Double journal initialement absent | Dépendance publiée depuis la reprise du 07:09. | `Journal` lu dans `journal/__init__.py`, double officiel utilisé dans les tests d'émission. | 07:09 — résolu |
 
 Déplacements préparés, **non exécutés**, suivis du seul périmètre de tests verifier :
@@ -201,3 +220,74 @@ agents ont publié journal/bridge pendant la session ; leurs fichiers et caches 
 - Aucun code modifié après les **108 tests verts** et la preuve autonome ; seuls les documents de reprise
   ont été enrichis. Aucune amélioration de skill proposée : les garde-fous appliqués étaient déjà couverts
   par `autonomous-work`, les enseignements restants concernent les contrats propres au projet.
+
+
+### 11:09 — mesure de production et en-tête courant
+
+Passe transverse demandée via TEMPO.md. Aucun code métier ni case de livraison modifié.
+Mesure AST/tokenize : **563 lignes de code**, **739 physiques**, cible globale **950**. Sous-paquets et __init__.py inclus ; tests et doubles exclus.
+L’empreinte de l’en-tête couvre les chemins et octets de toute la production.
+La nouvelle métrique ne valide aucun item métier et ne relève aucune cible numérique.
+
+**En-tête antérieur conservé** :
+
+```text
+**Statut** : en cours — code livré et vert, statut corrigé par la passe transverse du 10:09 (il portait `non commencé`)
+**Mise à jour** : —
+**Lignes** : 607 / ~800 L socle / ~950 L cible — **mesuré par la passe transverse du 10:09** ; l'agent du module ne l'avait pas actualisé
+```
+
+**Niveau de preuve : 2** pour la mesure documentaire ; la suite initiale complète du 11:09 a rendu 1 215 passed et 3 skipped hors sandbox. Le détail des nouvelles validations vit dans tests/STATE.md.
+
+### 12:09 — raccordement des faits, point intermédiaire
+
+`kernel.SourceFact`/`RepoFact` et leurs producteurs sont disponibles. Premier rouge : **12 échecs** car `run` manquait ; première implémentation : **12 passed en 1,58 s**. Elle croise cardinalité, chemins, empreintes, plage et dépôt avant exécution. La revue ajoute trois cas encore rouges : diff périmé, coordonnées fausses et diff tronqué pouvaient atteindre `check_sources`. Aucun succès de livraison annoncé ; ils doivent être corrigés avant proposition.
+
+Le choix entre source candidate du modèle et transformations fermées reste demandé à l'utilisateur ; aucun code modèle exécuté. `schema_conform` reste bloqué sur son binding déclaré.
+**Niveau de preuve : 4** intermédiaire sur fixtures de faits, double à compléter.
+
+### 12:09 — croisement des hunks et double publiés
+
+Les trois diff incohérents sont corrigés : **37 passed en 4,41 s** sur la première gate, le contrat et la frontière. Corpus élargi ensuite : **132 passed, 1 erreur en 21,57 s**, fixture `verifier_double` inexistante ; correction via le chargeur partagé `double("verifier")`. L'avertissement Pydantic du `model_copy` volontairement invalide est maintenant attendu explicitement par le test.
+
+Mesure courante : **704 code / 950**, **909 physiques**. Test de substitution des faits après verdict et refus de persistance ajoutés ; nouveau contrôle global en attente.
+**Niveau de preuve : 5** sur les premières signatures/doubles ; pas de campagne.
+
+### 12:09 — gate complète vérifiée et dernière garde de budget
+
+Après correction du chargement du double : **133 passed en 22,12 s** sur module/contrat/frontière ; suite globale **1 349 passed, 3 skipped, 7 warnings en 37,50 s**. Les trois skips concernent les scénarios propres aux doubles bridge/campaign/refinery ; warnings Starlette/httpx et fork après threads inchangés.
+
+Une dernière régression rouge (**1 failed, 24 deselected en 0,04 s**) montre que la validation des faits redonnait tout le timeout à check_sources. `run` décompte maintenant le temps écoulé depuis l'entrée et bloque si le budget est épuisé avant l'exécution. Les coordonnées d'un hunk au-delà de la fin d'une source sont aussi refusées. Revalidation finale en cours.
+
+**Résolution des blocages** : forme et producteurs des faits, gate complète et liaison du reçu sont résolus ; l'appelant doit encore bloquer son nœud sur `None`. La frontière et le contrat partagé sont bien dans tests/boundaries et tests/contracts. `schema_conform` demeure ouverte (8/9 relations). L'ancienne portée source_verification reste disponible via check_sources ; run autorise node_verification avec effet confirmé et faits liés.
+**Niveau de preuve : 5** sur contrats et doubles, processus verifier réels sur sources de test. Aucune mission ni Ollama.
+
+### 12:09 — preuve finale de la chaîne de faits et de la sélection
+
+Suite complète finale dans **pithos / Python 3.12.9** : **1 367 passed, 3 skipped, 7 warnings en 37,10 s**.
+Les contrôles d'en-têtes STATE et `git diff --check` passent. Aucune dépendance installée, aucun Git d'écriture, aucun bytecode suivi modifié. Les propositions sont dans les git.md ; les contrats transverses ont leur lot dans tests/git.md.
+**Niveau de preuve : 5**, avec subprocess et fichiers de test effectivement exercés. Le marcheur complet et le premier vert avec modèle local restent à démontrer. La source candidate attend l'arbitrage utilisateur.
+
+### 12:09 — admission publique avant une proposition de code
+
+Quatre tests rouges montrent l'absence de preflight dans la façade/double. La nouvelle méthode compose
+les contrôles purs existants admit/render, avec un nom d'artefact logique jamais ouvert. Elle permet à
+engine de refuser un critère inexécutable avant l'appel modèle et le splice. Aucun test de propriété n'est
+lancé par cette admission. Le Protocol et son contrôle de signature incluent preflight.
+Le blocage « source candidate » est levé par l'accord utilisateur ; schema_conform reste non admise.
+**Niveau de preuve : 2** à l'écriture ; contrôles ciblés puis globaux en cours.
+
+### 12:09 — admission pure vérifiée
+
+**26 passed en 2,79 s**, préflight/contrat/frontière. Aucun accès disque ni processus dans l’admission ; le symbole manquant, schema_conform et monotone sur JSON sont refusés. Suite complète à relancer avec la nano-étape engine. **Niveau de preuve : 5.**
+
+### 13:09 — validation finale du banc audio
+
+Suite complète dans **pithos / Python 3.12.9** : **1 402 passed, 3 skipped, 7 warnings en 40,64 s**.
+La suite intermédiaire après run_attempt avait rendu **1 397 passed, 3 skipped, 7 warnings en 37,46 s**.
+Les cinq tests ajoutés relisent effets disque, reçus et artefacts du banc ; aucun nouveau skip.
+Skips : variantes réelles non scénarisables bridge/campaign/refinery. Warnings Starlette/httpx et
+fork après threads conservés. Les onze mesures STATE passent : **4 570 code, 7 106 physiques**.
+Aucune dépendance installée ni commande Git d'écriture. Aucun module déclaré fini.
+**Niveau de preuve : 5** sur contrats et composition ; la sonde de critère Ollama, mesurée séparément,
+atteint le niveau 6 pour ce seul appel. Le premier trial réel attend le HEAD du dépôt dédié.

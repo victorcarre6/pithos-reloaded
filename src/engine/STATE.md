@@ -7,7 +7,7 @@
 
 ## Prochaine action
 
-Terminer la validation transverse de l'instrumentation, puis composer walk autour de run_attempt : reprise/réconciliation, finalisation des verts et baseline, sans réexécuter un nœud running. Le trial-44kcg6ig a été exécuté en réel et refusé sur tautology ; ses octets ont été restaurés, aucune nouvelle initialisation Git n'est nécessaire.
+Composer walk autour de run_attempt : commencer par un test de reprise/réconciliation d'un nœud running sans réexécution, puis finalisation des verts et baseline. L'instrumentation est vérifiée. Le trial-44kcg6ig a été exécuté en réel et refusé sur tautology ; ses octets ont été restaurés, aucune nouvelle initialisation Git n'est nécessaire.
 
 ## Avancement
 
@@ -264,3 +264,13 @@ contrat et frontière. Les quatre anciennes attentes de rendu/budget ont été a
 La provenance de capacité est transmise au Deadline de bridge. Le branchement de ContextPacket au
 marcheur complet et la garde de non-progrès fondée sur les faits restent dans le backlog de walk ;
 aucune boucle ou limite de tours écartée n'est réintroduite.
+
+### 13:09 — instrumentation vérifiée dans le dépôt commun
+
+Suite complète **1 444 passed, 3 skipped, 7 warnings en 43,83 s**, Python 3.12.9/pithos,
+après intégration de l'entrée TUI parallèle ; aucun nouveau skip. Les onze STATE passent.
+Le selftest-wo3aa7e5 conserve un événement verification_report avec son verdict de mutation,
+relu par HTTP dans l'observatoire. Ce cas garde bridge et Git scénarisés : **niveau 5** pour
+la composition, **niveau 6 limité à la lecture locale**. Le trial historique reste inchangé.
+Les 673 lignes de production tiennent la cible 1050. La prochaine unité est walk avec réconciliation,
+pas un nouvel essai destiné à transformer le refus historique en vert.

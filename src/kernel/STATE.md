@@ -1,12 +1,13 @@
 # STATE — `kernel`
 
-**Statut** : non commencé
-**Mise à jour** : —
-**Lignes** : 0 / ~380 L
+**Statut** : en cours
+**Mise à jour** : 12:09
+**Lignes** : 307 code / 380 cible · 488 physiques
+**Empreinte** : 4d95e46247a6c36f72b26df42b0a24bb1f4ed6182501645a631d421a895a2702
 
 ## Prochaine action
 
-Obtenir la dérogation à AGENTS.md § 6 pour déplacer `src/kernel/test_double_contract.py` vers `tests/contracts/test_kernel_double.py` et `src/kernel/test_import_boundaries.py` vers `tests/boundaries/test_kernel.py`. Les deux fichiers sont prêts et verts. Après accord : déplacer, lancer uniquement ces deux tests et `src/kernel/` avec `PYTHONDONTWRITEBYTECODE=1 python -m pytest -q -p no:cacheprovider`, ajouter le résultat ici et actualiser les propositions sans commande Git d'écriture ; puis statut fini et prochaine action = lire `src/journal/STATE.md`.
+Les faits SourceFact et RepoFact sont publiés et validés avec leurs producteurs. Passer à engine après arbitrage de la source candidate ; pour schema_conform, définir d’abord le contrat de liaison outil → modèle Pydantic déclaré (ne pas inférer les annotations).
 
 ## Avancement
 
@@ -23,6 +24,24 @@ incompatibilité ou une mesure défavorable sont des preuves. Chaque entrée por
 Ce qui a été fait, ce qui a été mesuré, ce qui a été décidé.
 **Niveau de preuve** : 5 — validé sur double.
 -->
+
+### 10:09 — passe transverse : `tests/boundaries/` et `tests/contracts/` sont peuplés
+
+Écrite par l'agent d'intégration, pas par un agent de module. Ce module n'a **pas** été modifié : seuls
+ses deux tests transverses ont été déplacés à l'emplacement qu'`AGENTS.md` § 11 leur assigne.
+
+**Découvert au passage, et mesuré** : la suite complète du dépôt **n'était pas collectable**. Chaque
+agent ne lançait que `pytest src/<son module>`, vert en isolation ; à l'échelle du dépôt, huit
+`test_import_boundaries.py` et sept `test_double_contract.py` entraient en collision de nom de module
+pytest, parce que `kernel`, `engine` et `lifecycle` n'avaient pas de `__init__.py`. Les trois ont été
+ajoutés, et les quinze fichiers renommés à un nom unique en migrant.
+
+**Mesuré, après la passe** : `pytest -q` à la racine, venv `pithos`, Python 3.12.9 →
+**1215 passed, 3 skipped**. Les onze tests de frontière et les neuf corpus de contrat ont été
+**prouvés mordants** par injection : une violation d'import réelle dans le code livré de chaque module
+rend son test de frontière rouge, et une signature de double divergente rend son contrat rouge.
+
+**Niveau de preuve** : 5 — validé sur double, à l'échelle du dépôt cette fois.
 
 ## Blocages
 
@@ -66,7 +85,7 @@ _Choix d'implémentation pris ici, qu'un successeur doit connaître et ne doit p
 
 | Quoi | Pourquoi | Ce qui débloquerait | Résolu le |
 |---|---|---|---|
-| Emplacement des tests partagés | `tests/boundaries/` et `tests/contracts/` vides, hors périmètre d'écriture § 6 ; pourtant exigés par la définition de fini | Préparer les tests sous `src/kernel/`, puis autorisation de les placer dans les deux dossiers partagés ou amendement du critère | — |
+| Emplacement des tests partagés | `tests/boundaries/` et `tests/contracts/` vides, hors périmètre d'écriture § 6 ; pourtant exigés par la définition de fini | Préparer les tests sous `src/kernel/`, puis autorisation de les placer dans les deux dossiers partagés ou amendement du critère | **Résolu le 10:09** — déplacés par la passe transverse ; suite complète verte. |
 | Classification | La source Villani a six retours, dont `unknown`, le contrat exige cinq classes ; secrets et fichiers cachés ne doivent pas devenir authoritative par défaut | Question envoyée à l'utilisateur ; refus explicite des cas sans classe sûre proposé | — |
 
 ### Décisions locales
@@ -196,3 +215,79 @@ statut non suivi impose ce contrôle explicite ; le `git diff --check` ordinaire
 retour 1 de `--no-index` correspond à la différence avec `/dev/null`. Les seules modifications postérieures
 aux 193 tests verts concernent la documentation. Les propositions finales visibles de `git.md` remplacent
 les propositions antérieures conservées ; aucune écriture Git exécutée.
+
+
+### 11:09 — mesure de production et en-tête courant
+
+Passe transverse demandée via TEMPO.md. Aucun code métier ni case de livraison modifié.
+Mesure AST/tokenize : **282 lignes de code**, **447 physiques**, cible globale **380**. Sous-paquets et __init__.py inclus ; tests et doubles exclus.
+L’empreinte de l’en-tête couvre les chemins et octets de toute la production.
+La nouvelle métrique ne valide aucun item métier et ne relève aucune cible numérique.
+
+**En-tête antérieur conservé** :
+
+```text
+**Statut** : en cours — code livré et vert, statut corrigé par la passe transverse du 10:09 (il portait `non commencé`)
+**Mise à jour** : —
+**Lignes** : 339 / ~380 L — **mesuré par la passe transverse du 10:09** ; l'agent du module ne l'avait pas actualisé
+```
+
+**Prochaine action antérieure, remplacée car périmée** :
+
+La dérogation demandée ici a été **accordée et exécutée** par la passe transverse du 10:09 :
+`test_double_contract.py` est devenu `tests/contracts/test_kernel_double.py` et
+`test_import_boundaries.py` est devenu `tests/boundaries/test_kernel.py`. Les deux sont verts, et le
+test de frontière a été prouvé mordant par injection d'un `import subprocess` dans `contracts.py`.
+
+Ce qui reste avant `fini` : **treize cases de « Fini quand » ne sont pas cochées** dans la rubrique
+Avancement ci-dessous. Les reprendre une par une et cocher ce qui est réellement vérifié — la passe
+transverse n'a pas cochée à la place de l'agent du module, faute d'avoir observé chaque item. Le
+compte de lignes, lui, est mesuré : 339 L pour ~380 L de cible, sous le ratchet.
+
+**Niveau de preuve : 2** pour la mesure documentaire ; la suite initiale complète du 11:09 a rendu 1 215 passed et 3 skipped hors sandbox. Le détail des nouvelles validations vit dans tests/STATE.md.
+
+### 12:09 — reprise autonome de la tranche de faits
+
+L’utilisateur autorise la progression successive kernel → producteurs → verifier → engine, avec
+retour à l’humain aux décisions produit. Aucun Git d’écriture autorisé. Le worktree préexistant
+est conservé ; Python mesuré **3.12.9**, suite kernel + contrat + frontière **194 passed en 0,33 s**.
+
+Plan : (1) contrats de faits bornés et double, rejets + round-trip ; (2) producteurs publiant ces
+faits, observations réelles sur fichiers et Git local ; (3) gate croisant les faits avant exécution ;
+(4) raccordement du marcheur si la contradiction source générée / contrainte dure n°1 est tranchée.
+Question de définition envoyée, travail sur les faits indépendant. Aucune génération libre ajoutée.
+
+Le producteur RepoFact existe dans broker/git.py, avec Change, mais ses modèles sont au mauvais
+niveau pour verifier. SourceFact transporte les octets ; FileFact porte déjà leurs empreintes.
+Kernel valide la forme, jamais l’accord des observations ni une autorité d’émission.
+Sources relues : MODULE complet, demande verifier STATE § blocages, broker/git.py, transaction
+workspace, Ouroboros code_intelligence.py:73-115 et Langfuse scores.ts:5-24. Aucun code tiers copié
+pour ces nouveaux contrats ; pas d’index ni d’autorité publique d’émettre un reçu.
+
+### 12:09 — contrats de faits publiés
+
+Test écrit avant code : collecte rouge, RepoChange absent. Après implémentation : **222 tests verts
+en 0,32 s** (kernel + contrat partagé + frontière), dont 28 nouveaux cas. Aucun module voisin importé
+par les nouveaux contrats. Mesure : **307 code / 380**, **488 physiques**.
+
+SourceFact contient les octets avant/après (2 000 000 octets maximum chacun, borne codeview existante).
+Le transport JSON est hexadécimal, conservant BOM, CRLF et même les octets non UTF-8 ; verifier décide
+si une source est exécutable. RepoChange refuse les chemins absolus/traversants et les incohérences
+rename/origine. RepoFact reprend les champs du producteur broker avec `complete=False` par défaut.
+Les reçus hétérogènes relisent FileFact/SourceFact/RepoFact sans changer les anciens champs.
+
+**Niveau de preuve : 5** sur les constructeurs du double ; 4 sur les rejets/round-trips. L’accord
+entre observations n’est pas testé ni décidé par kernel. HostFact et la liaison de schéma restent
+hors de cette unité. La suite complète et les producteurs sont l’étape suivante.
+
+### 12:09 — validation globale de l’unité kernel
+
+Suite complète hors sandbox : **1314 passed, 3 skipped, 7 warnings en 35,05 s**.
+Les trois skips et les avertissements sont ceux de la passe précédente. Prochaine étape :
+producteurs workspace puis broker. Propositions ajoutées sans aucune commande Git d’écriture.
+
+### 12:09 — preuve finale de la chaîne de faits et de la sélection
+
+Suite complète finale dans **pithos / Python 3.12.9** : **1 367 passed, 3 skipped, 7 warnings en 37,10 s**.
+Les contrôles d'en-têtes STATE et `git diff --check` passent. Aucune dépendance installée, aucun Git d'écriture, aucun bytecode suivi modifié. Les propositions sont dans les git.md ; les contrats transverses ont leur lot dans tests/git.md.
+**Niveau de preuve : 5**, avec subprocess et fichiers de test effectivement exercés. Le marcheur complet et le premier vert avec modèle local restent à démontrer. La source candidate attend l'arbitrage utilisateur.

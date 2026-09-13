@@ -1,16 +1,13 @@
 # STATE — `journal`
 
-**Statut** : en cours — socle livré et vert, deux items de `AGENTS.md` § 11 hors périmètre
-**Mise à jour** : 06:09
-**Lignes** : 313 / ~150 L socle · ~400 L cible — écart justifié plus bas
+**Statut** : en cours
+**Mise à jour** : 11:09
+**Lignes** : 262 code / 400 cible · 446 physiques
+**Empreinte** : 25cebefe0c71e2de5c6368b2ca82439710be7b220b675334bb8d21a7f3b19c20
 
 ## Prochaine action
 
-Faire trancher les deux blocages de périmètre ci-dessous (emplacement du test de conformité et du
-test de graphe d'imports). Aucun code n'est en attente : le socle est complet et vert. Si le module
-doit s'élargir vers sa cible de ~400 L, l'item suivant est la **rotation avec lecteurs conscients de
-l'archive** (`sup/state.py:918-1000`, verdict **Reporté**) — n'y toucher que quand le volume la
-justifie, pas avant.
+Vérifier les items restant ouverts du contrat de durabilité avec les corpus tests/contracts/test_journal_double.py et tests/boundaries/test_journal.py. Le placement transverse est résolu. Examiner ensuite la demande de lecture JSON tolérante de campaign ; ne pas réintroduire la rotation reportée sans volume la justifiant.
 
 ## Avancement
 
@@ -120,13 +117,31 @@ ligne déclarant le payload qu'elle omet.
 **Niveau de preuve : 3 — effet réel constaté sur fichiers.** Pas 6 : ni mission réelle, ni
 `~/logs/pithos2/`, ni Ollama.
 
+### 10:09 — passe transverse : `tests/boundaries/` et `tests/contracts/` sont peuplés
+
+Écrite par l'agent d'intégration, pas par un agent de module. Ce module n'a **pas** été modifié : seuls
+ses deux tests transverses ont été déplacés à l'emplacement qu'`AGENTS.md` § 11 leur assigne.
+
+**Découvert au passage, et mesuré** : la suite complète du dépôt **n'était pas collectable**. Chaque
+agent ne lançait que `pytest src/<son module>`, vert en isolation ; à l'échelle du dépôt, huit
+`test_import_boundaries.py` et sept `test_double_contract.py` entraient en collision de nom de module
+pytest, parce que `kernel`, `engine` et `lifecycle` n'avaient pas de `__init__.py`. Les trois ont été
+ajoutés, et les quinze fichiers renommés à un nom unique en migrant.
+
+**Mesuré, après la passe** : `pytest -q` à la racine, venv `pithos`, Python 3.12.9 →
+**1215 passed, 3 skipped**. Les onze tests de frontière et les neuf corpus de contrat ont été
+**prouvés mordants** par injection : une violation d'import réelle dans le code livré de chaque module
+rend son test de frontière rouge, et une signature de double divergente rend son contrat rouge.
+
+**Niveau de preuve** : 5 — validé sur double, à l'échelle du dépôt cette fois.
+
 ## Blocages
 
 | Quoi | Pourquoi | Ce qui débloquerait | Résolu le |
 |---|---|---|---|
 | 1. « Les deux ou aucune » n'est pas littéralement atteignable | Une fois la ligne JSONL `fsync`ée, la retirer serait une réécriture du journal — **contrainte dure n°6**. `MODULE.md` § 8 item 1 et la contrainte se contredisent sur la fenêtre d'après-écriture. Signalé et non tranché en silence, comme l'impose `AGENTS.md` § 2. | Confirmer que l'item vise la fenêtre **avant** la première écriture. L'invariant réellement tenu, et testé, est : `live.log` ne contient jamais un événement absent du JSONL. | — |
-| 2. Le test de conformité double ↔ implémentation vit dans mon périmètre | `AGENTS.md` § 11 le veut dans `tests/contracts/`, § 6 m'interdit d'y écrire. Il est donc dans `src/journal/test_interface.py`. | Autoriser `tests/contracts/test_journal_double.py`, ou entériner l'emplacement actuel. Le fichier est déplaçable tel quel. | — |
-| 3. Le test de graphe d'imports vit dans mon périmètre | Même conflit § 11 / § 6 pour `tests/boundaries/`. Ma version ne couvre que `journal` ; les **trois règles** structurantes restent à écrire par qui possède ce répertoire. | Un agent mandaté sur `tests/boundaries/`, ou l'autorisation d'y écrire la règle qui me concerne. | — |
+| 2. Le test de conformité double ↔ implémentation vit dans mon périmètre | `AGENTS.md` § 11 le veut dans `tests/contracts/`, § 6 m'interdit d'y écrire. Il est donc dans `src/journal/test_interface.py`. | Autoriser `tests/contracts/test_journal_double.py`, ou entériner l'emplacement actuel. Le fichier est déplaçable tel quel. | **Résolu le 10:09** — déplacés par la passe transverse ; suite complète verte. |
+| 3. Le test de graphe d'imports vit dans mon périmètre | Même conflit § 11 / § 6 pour `tests/boundaries/`. Ma version ne couvre que `journal` ; les **trois règles** structurantes restent à écrire par qui possède ce répertoire. | Un agent mandaté sur `tests/boundaries/`, ou l'autorisation d'y écrire la règle qui me concerne. | **Résolu le 10:09** — déplacés par la passe transverse ; suite complète verte. |
 | 4. Écart de lignes : 313 pour ~150 L de socle | L'estimation de `MODULE.md` couvrait `write`+`read`+`redact` (70+55+25) et ne budgétait ni `__init__.py` (36 L de `Protocol`, exigé par `ARCHITECTURE.md`), ni `bind`, ni la reprise par **segment lié** (~46 L), tous deux exigés par « Fini quand ». Le module reste **sous la cible de ~400 L**. | Rien à débloquer : le ratchet est désormais **shrink-only à partir de 313**. Aucune ligne n'est spéculative ; toute réduction devra retirer du comportement testé. | — |
 
 ## Décisions locales
@@ -197,3 +212,29 @@ prouver de plus. Les deux pannes que le double sait simuler sont celles que `MOD
 | `prime/ca/core/event-log.ts:39-52` — même fd pour taille et allocation | Adapter | non | Pas de borne `maxBytes` au socle ; à reprendre avec la rotation. |
 | `prime/ca/core/semantic-edges.ts` (3 lignes) | Inspirer | non | Le pli de causalité appartient à `observatory` / `engine`. |
 | `prime/ca/core/semantic-edges.ts:118-149` — `hashTurnBody` | Traduire | non | L'idempotence Telegram et Git appartient à `broker`. |
+
+
+### 11:09 — mesure de production et en-tête courant
+
+Passe transverse demandée via TEMPO.md. Aucun code métier ni case de livraison modifié.
+Mesure AST/tokenize : **262 lignes de code**, **446 physiques**, cible globale **400**. Sous-paquets et __init__.py inclus ; tests et doubles exclus.
+L’empreinte de l’en-tête couvre les chemins et octets de toute la production.
+La nouvelle métrique ne valide aucun item métier et ne relève aucune cible numérique.
+
+**En-tête antérieur conservé** :
+
+```text
+**Statut** : en cours — socle livré et vert, deux items de `AGENTS.md` § 11 hors périmètre
+**Mise à jour** : 06:09
+**Lignes** : 313 / ~150 L socle · ~400 L cible — écart justifié plus bas
+```
+
+**Prochaine action antérieure, remplacée car périmée** :
+
+Faire trancher les deux blocages de périmètre ci-dessous (emplacement du test de conformité et du
+test de graphe d'imports). Aucun code n'est en attente : le socle est complet et vert. Si le module
+doit s'élargir vers sa cible de ~400 L, l'item suivant est la **rotation avec lecteurs conscients de
+l'archive** (`sup/state.py:918-1000`, verdict **Reporté**) — n'y toucher que quand le volume la
+justifie, pas avant.
+
+**Niveau de preuve : 2** pour la mesure documentaire ; la suite initiale complète du 11:09 a rendu 1 215 passed et 3 skipped hors sandbox. Le détail des nouvelles validations vit dans tests/STATE.md.

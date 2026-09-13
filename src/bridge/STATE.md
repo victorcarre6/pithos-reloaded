@@ -1,18 +1,13 @@
 # STATE — `bridge`
 
-**Statut** : en cours — socle livré et vert, un item de `AGENTS.md` § 11 hors périmètre
-**Mise à jour** : 06:09
-**Lignes** : 345 / ~250 L — écart justifié plus bas
+**Statut** : en cours
+**Mise à jour** : 13:09
+**Lignes** : 315 code / 250 cible · 517 physiques
+**Empreinte** : 83303169b46bcf0e0e37214e689d880512e5794ae73718bce179c3f2cb428a82
 
 ## Prochaine action
 
-Faire trancher le blocage n°1 (emplacement du test de graphe d'imports). Aucun code n'est en
-attente : le socle est complet et vert sur route locale scriptée. Le chemin critique suivant est
-le **spike n°2 reformulé** — brancher `probe()` puis `call()` sur l'Ollama réel et **mesurer le taux
-de rejet de la revalidation locale par code d'erreur**. Tout est en place pour le faire : lancer
-`probe()` avec `PITHOS_OLLAMA_URL` sur la route réelle et lire les événements `_record` du journal.
-**Prérequis côté `engine`** : consigner le verdict de `revalidate`, que `bridge` ne peut pas émettre
-sans rendre une fonction pure impure — voir la dernière entrée du journal.
+Mesurer les rejets de revalidation et la densité sur une série d'appels selon le spike n°2/n°4 ; le trial-44kcg6ig a rendu un candidat conforme puis refusé par le mutation-check. La télémétrie capacité/provenance/durée est livrée ; ne pas déduire un taux de fiabilité depuis un seul candidat.
 
 ## Avancement
 
@@ -142,12 +137,30 @@ d'erreur** » : il n'est donc **pas encore calculable depuis le journal seul**. 
 `engine`, qui compose `call` puis `revalidate`, qui doit consigner le verdict. La clé de jointure
 existe déjà : `Ok`/`Err` et l'événement de `_record` portent le **même `schema_sha256`**.
 
+### 10:09 — passe transverse : `tests/boundaries/` et `tests/contracts/` sont peuplés
+
+Écrite par l'agent d'intégration, pas par un agent de module. Ce module n'a **pas** été modifié : seuls
+ses deux tests transverses ont été déplacés à l'emplacement qu'`AGENTS.md` § 11 leur assigne.
+
+**Découvert au passage, et mesuré** : la suite complète du dépôt **n'était pas collectable**. Chaque
+agent ne lançait que `pytest src/<son module>`, vert en isolation ; à l'échelle du dépôt, huit
+`test_import_boundaries.py` et sept `test_double_contract.py` entraient en collision de nom de module
+pytest, parce que `kernel`, `engine` et `lifecycle` n'avaient pas de `__init__.py`. Les trois ont été
+ajoutés, et les quinze fichiers renommés à un nom unique en migrant.
+
+**Mesuré, après la passe** : `pytest -q` à la racine, venv `pithos`, Python 3.12.9 →
+**1215 passed, 3 skipped**. Les onze tests de frontière et les neuf corpus de contrat ont été
+**prouvés mordants** par injection : une violation d'import réelle dans le code livré de chaque module
+rend son test de frontière rouge, et une signature de double divergente rend son contrat rouge.
+
+**Niveau de preuve** : 5 — validé sur double, à l'échelle du dépôt cette fois.
+
 ## Blocages
 
 | Quoi | Pourquoi | Ce qui débloquerait | Résolu le |
 |---|---|---|---|
-| 1. Le test de graphe d'imports vit dans mon périmètre | `AGENTS.md` § 11 le veut dans `tests/boundaries/`, § 6 m'interdit d'y écrire. Il est donc dans `src/bridge/test_interface.py` — même conflit que pour `journal`. | Autoriser `tests/boundaries/`, ou entériner l'emplacement. Mon test couvre la **deuxième règle** (`bridge` sans `engine`) et rougit bien quand on la viole. | — |
-| 2. Écart de lignes : 345 pour ~250 L | L'estimation du `MODULE.md` couvre les quatre fichiers (40+70+60+40 = 210) et ne budgète ni `__init__.py` (27 L de `Protocol`, exigé par `ARCHITECTURE.md`), ni les trois types que la signature publique impose — `Deadline`, `RawResponse`, `Outcome` (~45 L) — que `kernel` ne possède pas et qu'aucun module inférieur ne peut porter. | Rien à débloquer. Ratchet **shrink-only à partir de 345**. Toute réduction devra retirer du comportement testé. | — |
+| 1. Le test de graphe d'imports vit dans mon périmètre | `AGENTS.md` § 11 le veut dans `tests/boundaries/`, § 6 m'interdit d'y écrire. Il est donc dans `src/bridge/test_interface.py` — même conflit que pour `journal`. | Autoriser `tests/boundaries/`, ou entériner l'emplacement. Mon test couvre la **deuxième règle** (`bridge` sans `engine`) et rougit bien quand on la viole. | **Résolu le 10:09** — déplacés par la passe transverse ; suite complète verte. |
+| 2. Écart de lignes : 345 pour ~250 L | L'estimation du `MODULE.md` couvre les quatre fichiers (40+70+60+40 = 210) et ne budgète ni `__init__.py` (27 L de `Protocol`, exigé par `ARCHITECTURE.md`), ni les trois types que la signature publique impose — `Deadline`, `RawResponse`, `Outcome` (~45 L) — que `kernel` ne possède pas et qu'aucun module inférieur ne peut porter. | Rien à débloquer. Ratchet **shrink-only à partir de 345**. Toute réduction devra retirer du comportement testé. | Résolu le 11:09 — unité explicite dans AGENTS § 4 ; 292 code / 250, plafond motivé ci-dessous, cible inchangée. |
 | 3. `jsonschema` n'est pas déclaré | La source de la revalidation l'utilise ; la stack du `MODULE.md` ne le contient pas et `requirements.txt` est hors de mon périmètre. | Rien : contourné sans dépendance (§ Journal). Si un besoin futur de valider un schéma **non dérivé d'un modèle Pydantic** apparaît, il faudra déclarer `jsonschema` — décision hors de mon périmètre. | contourné le 06:09 |
 
 ## Décisions locales
@@ -238,3 +251,96 @@ apparaît un jour.
 | **G — OpenHands (20 lignes)** | Adapter | 1 sur 20 | **Faite** : normalisation d'URL et canonicalisation d'hôte avant comparaison. Les autres portent sur la configuration d'un agent-server, ses tags, ses versions et ses listes d'outils — `campaign`, `engine` et `observatory`. Les headers d'authentification sont **écartés** : Ollama local n'en a pas. |
 | **H — SWE-agent (13 lignes)** | Adapter | 1 sur 13 | **Faite** : prompt versionné et paramétrable (`prompt/ling.md`). Le reste est configuration de retry, historique et fenêtres d'observation — explicitement **métier**, donc `engine` (`MODULE.md` § 3). |
 | **I — Langfuse (5 lignes)** | Adapter | 1 sur 5 | **Faite** : tokenisation locale à incertitude explicite, séparée de l'usage fourni. Interpolation de prompt, références versionnées et déballage MCP appartiennent à `campaign` et au produit. |
+
+
+### 11:09 — mesure de production et en-tête courant
+
+Passe transverse demandée via TEMPO.md. Aucun code métier ni case de livraison modifié.
+Mesure AST/tokenize : **292 lignes de code**, **485 physiques**, cible globale **250**. Sous-paquets et __init__.py inclus ; tests et doubles exclus.
+L’empreinte de l’en-tête couvre les chemins et octets de toute la production.
+La nouvelle métrique ne valide aucun item métier et ne relève aucune cible numérique.
+
+**En-tête antérieur conservé** :
+
+```text
+**Statut** : en cours — socle livré et vert, un item de `AGENTS.md` § 11 hors périmètre
+**Mise à jour** : 06:09
+**Lignes** : 345 / ~250 L — écart justifié plus bas
+```
+
+**Prochaine action antérieure, remplacée car périmée** :
+
+Faire trancher le blocage n°1 (emplacement du test de graphe d'imports). Aucun code n'est en
+attente : le socle est complet et vert sur route locale scriptée. Le chemin critique suivant est
+le **spike n°2 reformulé** — brancher `probe()` puis `call()` sur l'Ollama réel et **mesurer le taux
+de rejet de la revalidation locale par code d'erreur**. Tout est en place pour le faire : lancer
+`probe()` avec `PITHOS_OLLAMA_URL` sur la route réelle et lire les événements `_record` du journal.
+**Prérequis côté `engine`** : consigner le verdict de `revalidate`, que `bridge` ne peut pas émettre
+sans rendre une fonction pure impure — voir la dernière entrée du journal.
+
+**Plafond justifié** : 292 code
+**Justification** : La façade Protocol, les types de transport, la normalisation du schéma, la revalidation locale et la probe font 292 lignes de code. Les garanties déjà testées sont conservées ; le surplus de 42 lignes reste borné, sans augmenter la cible de 250.
+
+**Niveau de preuve : 2** pour la mesure documentaire ; la suite initiale complète du 11:09 a rendu 1 215 passed et 3 skipped hors sandbox. Le détail des nouvelles validations vit dans tests/STATE.md.
+
+### 12:09 — code candidat et conservation du brut
+
+Accord utilisateur reçu sur la source candidate. Neuf tests rouges pour candidate_model absent, puis
+**37 passed, 1 skipped en 0,16 s** sur nouveau contrat, contrat partagé et frontière. Un autre test rouge
+prouve la perte du contenu après 500 caractères ; raw_content, thinking et request sont désormais
+conservés. Prompt dédié, aucun attendu ni critère libre, symbole fixé par le harness.
+**Plafond justifié** : 307 code
+**Justification** : +15 lignes pour le schéma de code candidat explicitement autorisé, sa façade Protocol et la conservation du brut ; la cible reste 250.
+**Niveau de preuve : 5** sur contrat/double ; validation de l’archivage final en cours.
+
+### 12:09 — contrat candidat validé
+
+**38 passed, 1 skipped en 0,16 s** ciblés ; suite complète **1 377 passed, 3 skipped, 7 warnings en 37,33 s**, Python 3.12.9/pithos. Passage à engine après publication de l’admission pure verifier.
+**Niveau de preuve : 5** ; aucune route modèle réelle sondée.
+
+### 13:09 — sonde réelle : refus puis réponse conforme
+
+Les preuves sont conservées dans experiments/visualizer/runs : probe-hl_m8m7f et probe-nm_07u0h
+refusent la fenêtre absente ; le second contient le diagnostic HTTP 200 avec modèle attendu.
+`ollama show pithos/ling-3.0-tiny:8b-16k --parameters` rend num_ctx=16384 ; cette configuration
+est passée explicitement avec provenance asserted. probe-41ado4z2 consomme 128 tokens en thinking
+et termine par length, donc rejeté. Après consigne explicite et réserve de 1 024 tokens sous 60 s,
+probe-z20hc14z rend stop, Criterion conforme, usage 223 prompt + 358 completion = 581 tokens.
+Les deux réponses et requêtes sont intégralement disponibles dans events.jsonl. Aucun taux déduit.
+Mesure inchangée : 307 code / 250, 509 physiques ; empreinte mise à jour.
+**Niveau de preuve : 6 pour la sonde de critère**, fenêtre asserted. Le schéma candidat en réel,
+la nano-étape avec Git et l'annulation matérielle restent à éprouver. Validation globale en cours.
+
+### 13:09 — validation finale du banc audio
+
+Suite complète dans **pithos / Python 3.12.9** : **1 402 passed, 3 skipped, 7 warnings en 40,64 s**.
+La suite intermédiaire après run_attempt avait rendu **1 397 passed, 3 skipped, 7 warnings en 37,46 s**.
+Les cinq tests ajoutés relisent effets disque, reçus et artefacts du banc ; aucun nouveau skip.
+Skips : variantes réelles non scénarisables bridge/campaign/refinery. Warnings Starlette/httpx et
+fork après threads conservés. Les onze mesures STATE passent : **4 570 code, 7 106 physiques**.
+Aucune dépendance installée ni commande Git d'écriture. Aucun module déclaré fini.
+**Niveau de preuve : 5** sur contrats et composition ; la sonde de critère Ollama, mesurée séparément,
+atteint le niveau 6 pour ce seul appel. Le premier trial réel attend le HEAD du dépôt dédié.
+
+### 13:09 — capacité et durée traçables pour chaque appel
+
+La trace ajoute context_window, context_provenance et elapsed_seconds mesuré par monotonic,
+y compris après refus de budget ou erreur de transport. Ces champs ne rejoignent pas le payload HTTP.
+La provenance est transmise par probe et par engine ; le double partage le même Deadline.
+Test initial rouge sur la signature interne de _record, puis **85 passed, 1 skipped en 10,49 s**
+sur bridge + contrat + frontière, avec serveur HTTP local autorisé. Le skip reste la variante
+réelle qui ne peut charger de scénario. **Niveau 6 pour ce transport local scénarisé**,
+niveau 5 pour les contrats ; aucune nouvelle mesure Ollama n'est revendiquée.
+
+**Plafond justifié** : 315 code
+**Justification** : +8 lignes sur 307 pour porter la provenance avec Deadline et mesurer la durée
+dans les trois issues déjà présentes. Pas de nouveau transport, retry, provider ni dépendance Python.
+
+### 13:09 — télémétrie intégrée et vérifiée
+
+Suite complète du dépôt commun : **1 444 passed, 3 skipped, 7 warnings en 43,83 s**,
+Python 3.12.9/pithos ; contrôle des onze STATE conforme. Le corpus ciblé reste celui des
+85 tests et du skip de contrat consignés ci-dessus. Le dashboard projette les deux appels
+historiques du trial (2 461 tokens rapportés, aucune troncature) avec capacité 16 384 **asserted**,
+sans convertir cette configuration en confirmation de la route. **Niveau 5 sur contrats** ;
+aucun nouvel appel Ollama n'a été nécessaire à cette livraison.
