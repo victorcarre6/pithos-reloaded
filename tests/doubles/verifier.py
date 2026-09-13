@@ -3,6 +3,7 @@
 from kernel.contracts import Criterion
 from kernel.facts import Receipt, RecordKey
 from verifier.models import Verdict
+from verifier.gates import preflight  # admission pure commune, aucune exécution ni I/O
 
 
 def _key(criterion):
@@ -13,6 +14,8 @@ def _key(criterion):
 
 class MemoryVerifier:
     """Rend les verdicts de la table de couples (Criterion, Verdict), sans repli implicite."""
+
+    preflight = staticmethod(preflight)
 
     def __init__(self, scenarios, receipts=()):
         self.scenarios = {}
@@ -29,6 +32,13 @@ class MemoryVerifier:
 
     def check_sources(self, criterion, before, after, *, artifact_root, timeout):
         verdict = self.scenarios[_key(criterion)]
+
+        return Verdict.model_validate_json(verdict.model_dump_json())
+
+    def run(self, criterion, facts, *, artifact_root, timeout):
+        verdict = self.scenarios[_key(criterion)]
+        if verdict.effect == "confirmed" and verdict.facts != facts:
+            raise ValueError("facts differ from the scripted scenario")
 
         return Verdict.model_validate_json(verdict.model_dump_json())
 

@@ -1,4 +1,4 @@
-"""Frontière exécutable de la tranche sur sources en mémoire, avant raccordement des faits."""
+"""Frontières de la double gate et de la vérification des faits injectés."""
 
 from pathlib import Path
 from typing import Protocol, runtime_checkable
@@ -20,3 +20,12 @@ class SourceVerifier(Protocol):
         self, node_id: str, attempt: int, facts: list[Fact], artifact: Path, *,
         key: RecordKey, verdict: Verdict, journal: Journal,
     ) -> Receipt | None: ...
+
+
+@runtime_checkable
+class Verifier(SourceVerifier, Protocol):
+    def preflight(self, criterion: Criterion, source: str) -> None: ...
+
+    def run(
+        self, criterion: Criterion, facts: list[Fact], *, artifact_root: Path, timeout: float,
+    ) -> Verdict: ...

@@ -476,3 +476,32 @@ Les reprises Villani ont été relues sous leur chemin réel `villani_code/` ; l
 documentée dans `resources/MANIFEST.md`. Leur tronc d'archivage a été adapté : pas de shell, pas de chemin
 workspace, pas de code de retour coercé. Le compacteur conserve aussi la queue après la borne en caractères.
 Les reprises de purge, Git, capteurs exclus et gate hermétique n'ont pas été portées.
+
+## Décisions locales — 12:09 : croisement des faits
+
+- `Verifier` étend le Protocol `SourceVerifier` avec `run(criterion, facts, *, artifact_root, timeout)`.
+  La gate exige exactement un `FileFact`, un `SourceFact` et un `RepoFact` canoniques, revalidés et copiés.
+- `run` croise les SHA-256 des octets, la cible, l'unique remplacement et le maintien à l'octet près
+  du préfixe/suffixe extérieur à la plage. Il exige une observation Git complète avec HEAD,
+  un seul fichier existant modifié, et des hunks texte dont coordonnées, tailles, contexte,
+  ajouts et suppressions correspondent aux sources. Le reste des deux sources doit être identique.
+  Le décodage Git suit le transport texte broker (fins de ligne normalisées pour ce croisement seulement) ;
+  les empreintes et la restauration portent toujours les octets bruts. `re` stdlib est ajouté à la Stack.
+- Diff tronqué, binaire, rename, mode changé, plusieurs fichiers et encodage non UTF-8 sont bloqués
+  avant exécution. Cette tranche concerne une fonction existante dans un module autonome ;
+  elle ne garantit ni un instantané atomique de Git/workspace ni un confinement contre du code hostile.
+  Le marcheur devra partir d'un dépôt propre et séquencer les observations sous sa transaction.
+- La double gate reste inchangée. `check_sources` seul conserve `effect=unproven` ; `run` établit
+  séparément `effect=confirmed`. Les hashes des sources effectivement testées sont liés au verdict.
+  Un effet confirmé peut accompagner un invariant rejeté : les axes ne sont pas confondus.
+- `emit_receipt` refuse des faits différents de ceux du verdict et revalide leur liaison aux sources
+  vérifiées. Son événement annonce `scope=node_verification` seulement pour cette gate complète.
+  Sans acquittement strict du journal, il rend encore `None` ; aucun appelant ne peut en déduire du vert.
+- Le double rejoue une table de verdicts sans I/O, avec contrôle des faits pour l'effet confirmé.
+  `schema_conform` et la route de source candidate du modèle restent en attente de définition.
+
+Le timeout de `run` comprend le contrôle des faits : seule sa durée restante est transmise à la double gate.
+
+### 12:09 — admission publique
+
+`Verifier.preflight(criterion, source)` compose les gardes pures de symboles et relation/domaine. Il n’écrit aucun artefact, ne lit pas la cible et ne lance rien ; engine l’appelle avant toute proposition ou mutation. Son double partage ces prédicats purs.

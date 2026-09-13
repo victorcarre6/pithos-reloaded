@@ -34,16 +34,19 @@ def emit_receipt(node_id: str, attempt: int, facts: list[Fact], artifact: Path, 
         facts=facts,
     )
     receipt = Receipt.model_validate_json(receipt.model_dump_json())
+    if verdict.effect == "confirmed" and receipt.facts != verdict.facts:
+        raise ValueError("receipt facts differ from the verified facts")
 
-    # la trace nomme sa portée ; ce reçu seul ne rend aucun nœud vert
+    # la portée complète exige encore que l'appelant observe le reçu durable
+    scope = "node_verification" if verdict.effect == "confirmed" else "source_verification"
     event = Event(
         ts=datetime.now(timezone.utc).isoformat(),
         v=1,
         type="validation",
         durable=True,
         payload={
-            "scope": "source_verification",
-            "effect": "unproven",
+            "scope": scope,
+            "effect": verdict.effect,
             "key": key.model_dump(mode="json"),
             "receipt": receipt.model_dump(mode="json"),
             "verification": verdict.model_dump(mode="json"),
