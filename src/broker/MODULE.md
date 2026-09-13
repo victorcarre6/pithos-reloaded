@@ -285,3 +285,15 @@ en mémoire (file de messages sortants, file de commandes entrantes). Il doit sa
 | I4.7 | `web/src/features/mcp/server/security.ts:70` | **Validation de `Host` et `Origin`** — sans l'échappatoire `allowedHosts=["*"]`, et **l'absence d'`Origin` n'est pas une preuve de confiance**. | **Adapter** |
 | I4.7 | LF104 | **Frontière de licence définie par les chemins** : MIT pour le socle, exceptions `ee/`, `web/src/ee/`, `worker/src/ee/`. | **Adapter** |
 
+
+
+## Décisions locales — 12:09 — faits consommables sans importer broker
+
+`Change` et `RepoFact` sont réexportés depuis kernel.facts (RepoChange est l’alias public Change).
+repo_fact rend une racine absolue et `complete=True` seulement pour un dépôt avec HEAD sans fichier
+non suivi ; les autres observations restent représentables et incomplètes. Git diff désactive les
+programmes externes et textconv. Porcelain tronqué ou chemin non relatif : invalid_schema.
+Ce fait n’est pas un snapshot atomique contre des écrivains non coopérants : la campagne exclusive
+reste requise, et verifier croise les autres observations. Les commandes sortantes restent inchangées.
+
+Le helper de scénario du double `agree_with(fact, repo=...)` accepte les FileFact absolus grâce à une racine explicite ; il ne résout aucun chemin sur disque et ne fabrique pas de diff complet.
