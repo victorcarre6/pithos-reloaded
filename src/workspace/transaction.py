@@ -35,6 +35,7 @@ import journal
 from kernel import codeview
 from kernel.contracts import Event
 from kernel.errors import Cause, PithosError
+from kernel.facts import SourceFact
 
 from .paths import checked_path
 from .splice import prepare_splice
@@ -115,6 +116,14 @@ class Transaction:
         self._require_active()
         self._replace(self.before, self._current())
         self._changed = False
+
+    def source_fact(self) -> SourceFact:
+        """Atteste le snapshot d'entrée et les octets relus, uniquement pendant la transaction."""
+
+        self._require_active()
+        current = self._current()
+
+        return SourceFact(path=self.path, before=self.before, after=current)
 
     def _require_active(self):
         if not self.active:

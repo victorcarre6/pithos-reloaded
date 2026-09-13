@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from kernel.facts import FileFact
+from kernel.facts import FileFact, SourceFact
 
 from .splice import SplicePlan
 
@@ -18,6 +18,7 @@ class TransactionPort(Protocol):
     def splice(self, function_name: str, new_source: str) -> FileFact: ...
     def cas_write(self, content: bytes) -> None: ...
     def restore(self) -> None: ...
+    def source_fact(self) -> SourceFact: ...
 
 
 @runtime_checkable

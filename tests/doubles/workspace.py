@@ -6,6 +6,7 @@ from posixpath import normpath
 from kernel.codeview import BINARY_SUFFIXES, MAX_SNIPPET_BYTES, MAX_SNIPPET_LINES, MAX_SOURCE_BYTES
 from kernel.codeview import PathClass, classify_repo_path
 from kernel.errors import Cause, PithosError
+from kernel.facts import SourceFact
 from workspace import StaleContentError, prepare_splice
 from workspace.paths import normalized_target
 
@@ -121,3 +122,9 @@ class MemoryTransaction:
         self.workspace._read(self.path)
         self.workspace.files[self.path] = self.before
         self.changed = False
+
+    def source_fact(self):
+        self._require_active()
+        current = self.workspace._read(self.path)
+
+        return SourceFact(path=self.path, before=self.before, after=current)

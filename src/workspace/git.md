@@ -109,3 +109,25 @@ conservés dans l'artefact référencé par STATE.md, niveau 5.
 ne stage aucun chemin hors du périmètre actuel. Mettre à jour la proposition après
 ces déplacements autorisés, si elle n'a pas déjà été exécutée.
 **Exécuté** : —
+
+
+## Proposé le 12:09 — snapshot source observé
+
+**Intention** : exposer les octets réels avant/après à travers la frontière transactionnelle.
+
+```sh
+ga src/workspace/transaction.py \
+   src/workspace/protocol.py \
+   src/workspace/test_sources.py \
+   tests/doubles/workspace.py \
+   src/workspace/MODULE.md \
+   src/workspace/STATE.md \
+   src/workspace/git.md
+gcmsg "workspace: publier les snapshots relus dans la transaction"
+```
+
+**Contient** : source_fact dans le Protocol, le réel et le double, six tests disque/mémoire.
+**Ne contient pas** : verdict sur les empreintes ou raccordement de la génération modèle.
+**Tests verts** : 126 module/contrat/frontière ; suite complète **1320 passed, 3 skipped**, Python
+3.12.9 / pithos, hors sandbox, 34,78 s. Dépend du lot kernel du 12:09.
+**Exécuté** : —

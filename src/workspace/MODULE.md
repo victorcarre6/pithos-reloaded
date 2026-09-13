@@ -462,3 +462,11 @@ mesurées du splice binaire (encodage, décorateurs, compilation), l'interface/d
 obligatoires et la transaction qui conserve les preuves avant mutation et rend
 les pannes explicites. Le prototype de dix lignes n'assurait ni staging, ni CAS
 sérialisé, ni confinement de chemin, ni propagation d'un échec de restauration.
+
+
+## Décisions locales — 12:09 — snapshot de vérification
+
+`TransactionPort.source_fact() -> kernel.facts.SourceFact` publie le snapshot d’entrée et les octets
+relus à l’appel, transaction active obligatoire. Une écriture externe est observée et sera détectée
+par comparaison avec FileFact dans verifier ; la candidate de last_plan n’est pas une preuve du disque.
+Les observations déjà rendues restent inchangées après restore. Réel et double ont le même contrat.
