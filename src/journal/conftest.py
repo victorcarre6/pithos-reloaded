@@ -1,27 +1,8 @@
-"""Fixtures partagées : le chargeur de doubles, une mission jetable, un événement valide."""
-
-import importlib.util
-from pathlib import Path
+"""Fixtures partagées : une mission jetable et un événement valide ; doubles hérités."""
 
 import pytest
 
 from journal.write import bind
-
-DOUBLES_DIR = Path(__file__).resolve().parents[2] / "tests" / "doubles"
-
-
-@pytest.fixture
-def double():
-    "Charge un double par nom : `tests/` n'est pas un paquet importable, on passe par le chemin."
-
-    def load(name):
-        spec = importlib.util.spec_from_file_location(f"doubles_{name}", DOUBLES_DIR / f"{name}.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        return module
-
-    return load
 
 
 @pytest.fixture

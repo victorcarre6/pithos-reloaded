@@ -1,29 +1,11 @@
-"""Fixtures partagées : le chargeur de doubles et une route locale scriptée."""
+"""Fixtures partagées : une route locale scriptée ; doubles hérités de la racine."""
 
-import importlib.util
 import json
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 
 import pytest
-
-DOUBLES_DIR = Path(__file__).resolve().parents[2] / "tests" / "doubles"
-
-
-@pytest.fixture
-def double():
-    "Charge un double par nom : `tests/` n'est pas un paquet importable, on passe par le chemin."
-
-    def load(name):
-        spec = importlib.util.spec_from_file_location(f"doubles_{name}", DOUBLES_DIR / f"{name}.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        return module
-
-    return load
 
 
 def completion(content, finish_reason="stop", **message):
