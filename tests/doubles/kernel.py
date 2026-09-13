@@ -8,7 +8,7 @@ from kernel.codeview import BINARY_SUFFIXES, MAX_SNIPPET_BYTES, MAX_SNIPPET_LINE
 from kernel.codeview import Symbol, classify_repo_path
 from kernel.contracts import Criterion, Event, Node
 from kernel.errors import Cause, PithosError
-from kernel.facts import FileFact, Receipt
+from kernel.facts import FileFact, Receipt, RepoChange, RepoFact, SourceFact
 
 
 def criterion(**changes):
@@ -70,6 +70,37 @@ def receipt(**changes):
     values.update(changes)
 
     return Receipt(**values)
+
+
+def source_fact(**changes):
+    values = {
+        "path": Path("tool.py"),
+        "before": b"def f(x): return x + 1\n",
+        "after": b"def f(x): return x\n",
+    }
+    values.update(changes)
+
+    return SourceFact(**values)
+
+
+def repo_change(**changes):
+    values = {"status": " M", "path": Path("tool.py"), "origin": None}
+    values.update(changes)
+
+    return RepoChange(**values)
+
+
+def repo_fact(**changes):
+    values = {
+        "repo": Path("/campaign"),
+        "head": "0" * 40,
+        "changes": [],
+        "diff": "",
+        "complete": False,
+    }
+    values.update(changes)
+
+    return RepoFact(**values)
 
 
 class MemoryCodeView:

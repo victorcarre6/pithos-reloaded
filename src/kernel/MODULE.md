@@ -312,3 +312,17 @@ C'est ce double que **tous** les autres modules utilisent. Soigne-le : une erreu
 - `is_binary` examine les extensions de la reprise Kilo et les 4 096 premiers octets. UTF-16/32 est classé binaire pour ce lecteur UTF-8, alors que la source récente sait lire ces encodages. Notice MIT et pointeur réel conservés dans `codeview.py`.
 - Le double fournit les cinq constructeurs et `MemoryCodeView({Path: str | bytes})`. Parsing indépendant sur `ast` ; réutilisation du seul prédicat public pur `classify_repo_path` et des constantes du contrat. Le filesystem virtuel ne modélise pas de symlinks. Les tests de symlinks portent sur l'implémentation réelle ; aucune preuve d'intégration avec un module voisin n'est revendiquée.
 - Tests propres au kernel conservés sous `src/kernel/` pour respecter le périmètre § 6. Les contrôles préparés `test_double_contract.py` et `test_import_boundaries.py` doivent être déplacés sous `tests/contracts/test_kernel_double.py` et `tests/boundaries/test_kernel.py` après autorisation explicite. Le module reste formellement bloqué jusque-là.
+
+
+## Décisions locales — 12:09 — faits pour la tranche de vérification
+
+- `SourceFact(path, before, after)` transporte les octets complets bornés à MAX_SOURCE_BYTES ;
+  JSON hexadécimal explicite, sans normalisation de fin de ligne ni décodage implicite.
+- `RepoChange(status, path, origin)` et `RepoFact(repo, head, changes, diff, complete)` sont désormais
+  au niveau kernel ; le producteur broker existe et pourra retirer ses modèles locaux homonymes.
+- `complete=False` est le défaut conservateur : le producteur seul annonce une collecte intégrale.
+  Kernel ne vérifie ni le diff ni les empreintes, responsabilité de verifier.
+- `Fact` est l’union de FileFact, SourceFact et RepoFact. Leurs champs distincts et `extra=forbid`
+  permettent la relecture des reçus historiques FileFact sans ajouter de discriminant obligatoire.
+- Les trois constructeurs correspondants sont publiés par le double ; le contrôle CodeView reste
+  dans tests/contracts. Pas de HostFact anticipé ni de liaison outil/schéma inventée.

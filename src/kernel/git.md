@@ -157,3 +157,25 @@ tests qui détectent des violations injectées, documentation des choix et du bl
 **Tests verts** : `src/kernel/test_double_contract.py`, `src/kernel/test_import_boundaries.py`, dans le run
 final **193 passed in 0.32s** — Python 3.12.9 / venv `pithos`. **Niveau de preuve : 5, sur double.**
 **Exécuté** : —
+
+
+## Proposé le 12:09 — contrats des faits externes
+
+**Intention** : publier les observations typées nécessaires à la gate de faits.
+
+```sh
+ga src/kernel/facts.py \
+   src/kernel/test_facts.py \
+   tests/doubles/kernel.py \
+   src/kernel/MODULE.md \
+   src/kernel/STATE.md \
+   src/kernel/git.md
+gcmsg "kernel: publier les snapshots source et faits de dépôt"
+```
+
+**Contient** : SourceFact borné à octets sérialisés en hex, RepoChange, RepoFact incomplet par défaut,
+union Fact rétrocompatible, trois constructeurs du double et 28 cas de validation.
+**Ne contient pas** : leurs producteurs ni l’autorité de juger leur cohérence.
+**Tests verts** : 222 tests kernel/contrat/frontière ; suite complète **1314 passed, 3 skipped**
+(Python 3.12.9 / pithos, hors sandbox, 35,05 s).
+**Exécuté** : —

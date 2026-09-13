@@ -3,8 +3,9 @@
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import Field, StrictInt, model_validator
+from pydantic import ConfigDict, Field, StrictBool, StrictInt, StrictStr, model_validator
 
+from .codeview import MAX_SOURCE_BYTES
 from .contracts import Contract, Name, PositiveInt, Relation
 
 
@@ -26,7 +27,47 @@ class FileFact(Contract):
         return self
 
 
-Fact = FileFact
+class SourceFact(Contract):
+    """Octets complets capturés par workspace ; leur accord avec FileFact appartient à verifier."""
+
+    model_config = ConfigDict(ser_json_bytes="hex", val_json_bytes="hex")
+
+    path: Path
+    before: bytes = Field(strict=True, max_length=MAX_SOURCE_BYTES)
+    after: bytes = Field(strict=True, max_length=MAX_SOURCE_BYTES)
+
+
+class RepoChange(Contract):
+    """Entrée porcelain relative au dépôt, avec origine obligatoire pour un rename ou une copie."""
+
+    status: StrictStr = Field(pattern=r"^[ MADRCUT?!]{2}$")
+    path: Path
+    origin: Path | None
+
+    @model_validator(mode="after")
+    def scoped_change(self):
+        # une entrée réelle, avec les deux côtés d'un déplacement
+        renamed = bool(set(self.status) & {"R", "C"})
+        if self.status == "  " or renamed != (self.origin is not None):
+            raise ValueError("status and origin are inconsistent")
+        for path in (self.path, self.origin):
+            if path is not None and (path.is_absolute() or ".." in path.parts or not path.parts):
+                raise ValueError("repository changes require nonempty relative paths")
+
+        return self
+
+
+class RepoFact(Contract):
+    """Observation broker du dépôt ; une collecte incomplète ne devient jamais complète par défaut."""
+
+    repo: Path
+    head: StrictStr
+    changes: list[RepoChange]
+    diff: StrictStr
+    complete: StrictBool = False
+
+
+Fact = FileFact | SourceFact | RepoFact
 
 
 class Receipt(Contract):
