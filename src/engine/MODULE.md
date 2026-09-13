@@ -12,6 +12,17 @@
 **Niveau de dépendance** : 3.
 **Stack** : Prefect 3 **en enveloppe stricte** · `time.monotonic()` · Pydantic v2.
 
+**Décisions locales — 13:09, observabilité.** `run_attempt` journalise le rapport complet
+de vérification avant de décider de publier ou de restaurer, sous `status/verification_report`.
+Le `RecordKey` reste attaché ; les faits source volumineux déjà tracés ne sont pas dupliqués.
+Ce rapport n'est pas un reçu et ne change pas l'autorité de verifier.
+
+`ContextPacket.render()` préfixe les exclusions par leurs comptes et raisons fermées.
+Son coût, séparateur compris, entre dans le budget **avant** admission et après chaque éviction
+(estimation caractères/4, même convention que bridge ; jamais des tokens mesurés).
+Les `estimated_units` fournies pour les contenus suivent cette convention. Source d'idée :
+Graphify `serve.py::_cut_lines_to_budget`, réécrit ; leurs marqueurs hors budget ne sont pas repris.
+
 ## 1. Autorité
 
 `engine` possède **l'arbre de travail, le contexte de chaque nœud, et le budget mural**. C'est lui qui
@@ -399,3 +410,52 @@ pour le retry (sans la boucle de réparation qui l'entoure), `child_result_dispo
 | D3.6 | `our/context_compaction.py:280-344,681-738` | Unités atomiques `tool_use`/`tool_result` inséparables (confirme Villani), sélection sous budget, **checkpoint de réclamation**. | **Écarté** |
 | D3.6 | `our/context_compaction.py:410-417` | `_SUMMARY_CONTRACT_DIGEST` — **le contrat du résumeur est haché** : un résumé produit sous un ancien contrat est reconnaissable. | **Écarté** |
 
+## Décisions locales — 10:09
+
+- L'admission initiale expose `is_verifiable`, `split_node` et `decompose` dans `walk.py`.
+  La fonction `walk(tree, budget, deps)` complète attend le contrat de source candidate
+  et les attestations manquantes recensées dans `STATE.md`. Aucun executor de repli.
+- `Tree` dans `tree.py` est un instantané Pydantic validé. `split_node` et `decompose`
+  reçoivent explicitement `tree_path` et le `Journal`, puis rendent l'instantané publié.
+  La journalisation d'intention précède le CAS de `tree.json` ; aucun effet d'exécution.
+- `assemble(node, budget, *, items, fingerprints)` reçoit les contenus et empreintes
+  du harness ; aucun accès direct au workspace. L'unité de `estimated_units` est celle
+  du budget fourni, elle ne prétend pas être un comptage tokenizer mesuré.
+- `RepoIndex.files` contient les chemins relatifs fournis par le harness. La classification
+  déterministe est branchée sur la scission et ses cinq classifications figurent dans la trace.
+
+## Décisions locales — 12:09 : sélection de contexte
+
+- `RepoIndex` porte maintenant `imports`, une table de chemins résolus par le harness. Tous ses
+  sommets doivent être dans `files` ; son absence signifie qu'aucune arête n'a été fournie, pas
+  qu'une analyse exhaustive du dépôt a été réalisée. Engine ne résout aucun import Python par I/O.
+- `select.relevant_files(instruction, index)` réutilise les cibles et raisons du classifieur existant.
+  `import_closure(targets, index)` parcourt les dépendances ; `impact_files(target, index, depth=1)`
+  parcourt les importeurs jusqu'à une profondeur explicite de 1 à 5. Chaque résultat porte sa raison.
+- Parcours en largeur, distance minimale, cycles dédupliqués, tri stable et cible toujours conservée.
+  Une cible absente ou non autoritaire est refusée. La classification publique kernel filtre les
+  deux côtés du graphe ; aucune traversée d'un artefact runtime pour atteindre un autre fichier.
+- Sources relues : Ouroboros `ouroboros/code_intelligence.py:737-800`, MIT (notice conservée),
+  et Villani `context_projection.py:9-70`. L'index Ouroboros n'existe pas ici : on adapte la fermeture,
+  sans dupliquer le classifieur, inventer des références dynamiques ni tronquer à 40 fichiers.
+  Le budget et les exclusions restent l'autorité de `assemble`. Aucun appel modèle ni filesystem.
+
+## Décisions locales — 12:09 : premier exécuteur transactionnel
+
+`attempt.run_attempt(tree, node_id, budget, deps, *, tree_path, artifact_root, system, instruction, attempt)`
+exécute une seule nano-étape pending ; le premier symbole du critère est sa fonction cible. Les chemins,
+le numéro de tentative, la consigne et la capacité sont fournis par le harness. `Deps` reçoit les ports
+workspace/bridge/verifier/journal et une fonction d'observation RepoFact injectée par la composition de
+campagne ; engine n'importe pas broker. Dataclasses, json, pathlib et typing sont de la stdlib existante.
+
+Ordre : dépôt complet propre, transaction/snapshot, admission pure verifier, intention running et CAS,
+proposition/revalidation, splice, faits, double gate, relecture des observations, reçu durable, CAS passed.
+La moindre exception dans la transaction restaure ses octets, y compris après reçu si publier l'arbre
+échoue. Les exceptions inattendues restent visibles et l'arbre running exige une réconciliation ; aucune
+réexécution automatique de running/passed/blocked. Le numéro d'essai doit être nouveau lors d'une nouvelle
+admission décidée par le futur marcheur. Aucun retry, finaliseur de mission ou récupération après SIGKILL
+n'est simulé par cette tranche. Les écrivains externes non coopérants restent une limite d'atomicité.
+
+`NanoEngine` et MemoryEngine exposent ce seul contrat, vérifié dans tests/contracts/test_engine_double.py.
+Le marcheur `walk`, ses dispositions et la baseline de mission complète restent distincts et à terminer.
+Le contexte de cet essai est minimal : source capturée, consigne et critère, sans mémoire ni résumé.
