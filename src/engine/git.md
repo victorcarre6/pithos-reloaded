@@ -264,3 +264,32 @@ Le JSON complet préserve les anciens contenus ; seule la projection déterminis
 **Tests verts** : **172 passed** sur src/engine, contrat NanoEngine et frontière ; suite complète
 **1500 passed, 3 skipped, 7 warnings en 44,03 s**, Python 3.12.9/pithos ; onze STATE et diff-check verts.
 **Exécuté** : —
+
+## Proposé le 14:09 — enveloppe Prefect locale
+
+**Intention** : Exécuter une mission sous un cycle Prefect local sans déplacer l'autorité métier.
+
+**Historique observé** : les lots walk et passation ont été exécutés par l'humain : eb028ee puis
+daee504, worktree propre au démarrage de cette unité. Les anciennes propositions restent historiques.
+
+```sh
+ga src/engine/flow.py \
+   src/engine/test_flow.py \
+   tests/doubles/engine.py \
+   src/engine/MODULE.md \
+   src/engine/STATE.md \
+   src/engine/git.md
+gcmsg "engine: enveloppe les missions dans prefect local"
+```
+
+**Contient** : entrée mission à appel unique, contrat MissionRunner, double, budget conservé,
+paramètres métier absents de Prefect, résultat non persisté, garde locale des connexions, timeout
+de secours natif et tests du SDK réel isolés dans un interpréteur dédié. Aucun retry Prefect.
+**Ne contient pas** : adaptateur GreenFinalizer réel, serveur de production, verrou/watchdog lifecycle
+ou placement transverse des contrats. Ces besoins restent explicités dans STATE.md.
+**Tests verts** : corpus engine/contrat/frontière **185 passed en 11,31 s** avant ajout de la garde locale
+de flow ; dernier test_flow sans serveur **13 passed, 1 deselected en 1,19 s** ; coexistence avec les
+vrais forks lifecycle après isolation **30 passed en 11,46 s**. Suite complète finale **1514 passed,
+3 skipped, 7 warnings en 55,93 s**, Python 3.12.9/pithos. Onze STATE et diff-check verts.
+**Preuve** : niveau 5 pour le métier sur doubles ; niveau 6 limité au runtime Prefect local.
+**Exécuté** : —

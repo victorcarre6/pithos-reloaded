@@ -19,6 +19,9 @@ class MemoryEngine:
 
         return Tree.model_validate_json(scripted.model_dump_json())
 
+    def mission(self, tree, budget, deps) -> Tree:
+        return self.walk(tree, budget, deps)
+
 
 class MemoryFinalizer:
     """Publication scénarisée par identité logique ; aucun Git ni filesystem."""

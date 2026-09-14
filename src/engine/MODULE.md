@@ -42,11 +42,8 @@ def finalize_green_nodes(tree: Tree, budget: Budget, deps: WalkDeps) -> Tree: ..
 # recovery.py — aucune nouvelle inférence
 def reconcile(tree: Tree, node_id: str, deps: Deps, *, tree_path, events_path) -> Tree: ...
 
-# flow.py — adaptateur Prefect prévu, pas encore livré
-@flow(name="mission", timeout_seconds=BUDGET_HARD)
-def mission(config: MissionConfig) -> None:
-    tree = load_or_create(config)
-    walk(tree, Budget(BUDGET_SOFT), deps)
+# flow.py — appel synchrone depuis la composition, sous son verrou de mission
+def mission(tree: Tree, budget: Budget, deps: WalkDeps) -> Tree: ...
 
 # context.py
 def assemble(node: Node, budget: int) -> ContextPacket:
@@ -573,3 +570,44 @@ les traces durables et tree.json restent l'autorité de reprise, pas le fichier 
 La lecture complète de l'archive reste une simplification déclarée à mesurer avant indexation.
 L'enveloppe flow.py reste le prochain travail engine ; l'adaptateur réel GreenFinalizer demeure à fournir
 par la composition/broker, sans import ascendant ici.
+
+## Décisions locales — 14:09 : enveloppe Prefect
+
+`flow.mission(tree, budget, deps) -> Tree` est l'entrée Python de composition. Elle ouvre un flow local
+nommé `mission` qui appelle `walk` exactement une fois. Aucun chargement d'arbre, nouvelle horloge,
+retry, tâche par nœud ou finaliseur supplémentaire. Le budget fourni continue donc de vieillir pendant
+le démarrage Prefect. `MissionRunner` et `MemoryEngine.mission` publient le même contrat ; le double
+réutilise son marcheur. Prefect n'est importé que dans `flow.py`, jamais via `engine/__init__.py`.
+
+Le flow interne n'a aucun paramètre : arbre, dépendances et budget sont capturés dans une fermeture.
+Sa base conserve seulement le cycle d'orchestration. `retries=0`, `persist_result=False` et
+`log_prints=False` sont explicites même si le profil Prefect les active. Les erreurs restent visibles ;
+le retour métier vient de walk et ses preuves restent dans le journal et tree.json. L'arrêt normal
+pour budget épuisé rend l'arbre reprenable et peut être `Completed` pour Prefect : le statut du framework
+n'est pas un verdict métier. Le test local relit paramètres vides et résultat non persisté dans son API.
+
+L'API doit être un serveur déjà lancé sur `http://127.0.0.1:<port>/api` ou `http://[::1]:<port>/api`.
+URL absente, nom DNS, adresse distante, proxy configuré ou contexte Prefect préexistant sont refusés
+avant création du run. Aucun serveur éphémère n'est lancé par cette entrée. Le client synchrone ignore
+les proxies d'environnement et les redirections HTTP ; métriques client, télémétrie d'orchestration
+et envoi de logs à l'API sont désactivés dans un contexte de settings restauré à la sortie.
+La composition doit lancer le **serveur** avec `PREFECT_SERVER_ANALYTICS_ENABLED=false` ; les settings
+du client ne peuvent pas désactiver un service déjà démarré ailleurs. Le serveur demeure local et
+administré par lifecycle/composition. Aucun déploiement Prefect Cloud ni envoi du code n'est exposé.
+
+`timeout_seconds = budget.remaining + 60` est calculé après ouverture du client, sans recréer Budget.
+Les 60 s sont une marge de secours fixe, non calibrée, distincte des 5 s de réserve métier. L'appel
+exige le thread principal et SIGALRM libre : Prefect 3.8.5 utilise alors son alarme native. Son timeout
+réel interrompt un sleep bloquant et déroule le finally dans le test. Il s'agit d'une **interruption
+Python**, pas d'un SIGKILL ni d'une borne garantie pour le démarrage/arrêt du framework ou une extension
+native non interruptible. Le watchdog de processus et la garde du propriétaire restent à composer
+dans lifecycle. Une coupure de secours ne vaut jamais acquittement de finalisation.
+
+Implémentation originale ; aucune nouvelle reprise tierce. SDK installé 3.8.5 relu (`flows.py`,
+`flow_engine.py`, `context.py`, settings et annulation) et contrats officiels consultés :
+[flows](https://docs.prefect.io/v3/api-ref/python/prefect-flows),
+[persistance](https://docs.prefect.io/v3/advanced/results).
+Le serveur temporaire de test coupe ses analytics avant démarrage ; le scénario métier reste sur
+doubles officiels. Ce smoke test s'exécute dans un interpréteur dédié, borné à 45 s : laisser le runtime
+Prefect dans le pytest parent perturbait la sortie des vrais forks de lifecycle. Les tests unitaires
+de l'enveloppe restent sans serveur. Aucun essai Ollama ou Git réel n'est ajouté par cette enveloppe.

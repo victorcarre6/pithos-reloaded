@@ -1,15 +1,15 @@
 # STATE — `engine`
 
-**Statut** : en cours
+**Statut** : bloqué
 **Mise à jour** : 14:09
-**Lignes** : 1079 code / 1050 cible · 1435 physiques
-**Empreinte** : 9ba86eb30850cc0b93005ce72bc6e824b58038413cf868baeb64e2a6e95a70bb
-**Plafond justifié** : 1079 code
-**Justification** : La passation ajoute 118 lignes à la base walk de 961 : format typé, relecture validée, archive append-only fsync et raccordement après restauration avec garde de conflit. Le rendu seul annoncé à ~30 lignes ne couvre pas ces garanties ; dépassement global de 29 lignes, aucun moteur de résumé ni dépendance ajouté.
+**Lignes** : 1125 code / 1050 cible · 1500 physiques
+**Empreinte** : f9dfb89e5b2afd7700c240e6d936c9bf6b3a89069617fbeacd75862ddd3d7a9e
+**Plafond justifié** : 1125 code
+**Justification** : L'enveloppe ajoute 46 lignes à la base de 1079 : entrée Prefect à appel unique, contrat, garde locale des connexions et du contexte, désactivation des traces secondaires et interruption de secours. Pas de second marcheur, de configuration métier ou de dépendance ajoutée. Dépassement global de 75 lignes ; la justification antérieure de la passation reste au journal.
 
 ## Prochaine action
 
-Implémenter flow.py comme enveloppe Prefect de walk : publier l'entrée de mission recevant l'arbre, le budget et WalkDeps depuis la composition ; tester un seul appel à walk, sans retry ni état métier Prefect, avec kill de dernier recours au-delà de la borne dure. Garder les imports Prefect hors du marcheur pur. L'exécution réelle attend toujours GreenFinalizer et le verrou lifecycle décrits dans Blocages. La passation CONTEXT.md est livrée, suite complète verte ; le dernier lot de git.md couvre les treize fichiers non commités de walk et de la passation.
+Faire publier l'adaptateur GreenFinalizer côté broker/composition : reconcile(key, receipt, timeout), finalize(key, receipt, timeout), interrogation avant rejeu et observation complète du dépôt. La composition doit détenir le verrou lifecycle et fournir le serveur Prefect local sans analytics, avec watchdog de processus ; voir Blocages. Après ces ports, vérifier une reprise/finalisation via flow.mission sous verrou réel. Faire déplacer les contrats locaux et la garde de flow par la passe transverse. L'enveloppe est livrée et sa proposition Git est prête ; aucun travail indépendant restant n'autorise à élargir le périmètre engine.
 
 ## Avancement
 
@@ -24,6 +24,7 @@ Implémenter flow.py comme enveloppe Prefect de walk : publier l'entrée de miss
 - [x] Baseline durable à chaque sortie dont le journal accepte encore les écritures.
 - [x] Disposition par enfant, liée au reçu pour les résultats exécutés ; historique conservé.
 - [x] Frontière et contrat NanoEngine partagés verts ; contrat Walker testé localement, placement transverse restant à effectuer.
+- [x] Enveloppe Prefect locale : appel unique, budget conservé, aucun paramètre/résultat métier persisté, timeout de secours exercé en réel.
 
 ## Journal
 
@@ -65,6 +66,8 @@ rend son test de frontière rouge, et une signature de double divergente rend so
 | Finalisation réelle de walk | `broker.commit` ne reçoit ni identité logique de vérification, ni deadline ; `broker.intent.resume` fournit les primitives mais aucun adaptateur ne compose interrogation, commit borné et observation. Engine ne peut importer broker ni modifier son code. | Publier côté composition/broker un objet conforme à GreenFinalizer : reconcile(key, receipt, timeout) interroge l'effet par identité et rend RepoFact ou None ; finalize(key, receipt, timeout) publie les seuls chemins attestés, persiste l'effet puis rend un RepoFact complet propre. Fournir le verrou de mission lifecycle autour de walk. | — ; niveau 5 sur MemoryFinalizer uniquement. |
 | Placement du nouveau contrat Walker | Le contrat NanoEngine partagé demeure intact ; le nouveau corpus Walker/GreenFinalizer est dans src/engine/test_walk.py, seul périmètre autorisé. | Passe transverse : déplacer ce corpus dans tests/contracts/test_engine_double.py et marquer walk livré dans docs/ARCHITECTURE.md avec la signature de MODULE.md. | — |
 | Placement du contrat ContextArchive | Le port et le double sont testés dans src/engine/test_dump.py, avec mutation des deux signatures ; tests/contracts reste hors périmètre engine. | Passe transverse : déplacer ce contrôle dans tests/contracts/test_engine_double.py, sans changer le métier. | — |
+| Composition du runtime Prefect | flow.py nécessite un serveur local déjà lancé, sans analytics serveur, un thread principal avec SIGALRM libre et le verrou exclusif de mission. Le timeout Prefect n'est pas un SIGKILL et ne borne pas son propre démarrage/arrêt. | Composition/lifecycle : fournir cette entrée locale avec arrêt du propriétaire précédent et watchdog de processus ; le flow ne crée pas d'infrastructure implicite. | — ; serveur temporaire et alarme réellement testés, aucune mission Git/Ollama. |
+| Placement du contrat MissionRunner | Le nouveau contrat et sa dérive de signature sont testés dans src/engine/test_flow.py ; tests/contracts reste hors périmètre. La frontière locale de flow complète l'exemption Prefect du scanner partagé. | Passe transverse : déplacer le contrat vers tests/contracts/test_engine_double.py avec Walker et ContextArchive ; reprendre la garde locale de flow dans tests/boundaries/test_engine.py. | — |
 
 ## Décisions locales
 
@@ -383,3 +386,69 @@ commité et ses fichiers partagés importent désormais dump.py. Elle remplace o
 proposition walk seule, conservée dans l'historique, afin d'éviter un commit sans le nouveau module.
 Aucune commande Git d'écriture exécutée. La prochaine unité est l'enveloppe flow.py ; la finalisation
 réelle et le placement des contrats restent les blocages externes documentés.
+
+### 14:09 — enveloppe flow.py vérifiée sur SDK local
+
+Worktree initial propre ; commits walk eb028ee et passation daee504 observés en lecture seule. Python
+**3.12.9/pithos**, Prefect **3.8.5** déjà installé. Aucune installation ni commande Git d'écriture.
+La borne SDK et ses effets ont été relus dans le code installé et la documentation officielle ;
+une recherche de telemetry/bootstrap.py a constaté son absence, résolue par lecture de run_telemetry.py.
+
+Tests avant implémentation : **1 failed / 10 errors**, import engine.flow absent. Après implémentation :
+**11 passed en 1,95 s** ; ajout de la finalisation en réserve : **12 passed, 1 deselected en 1,15 s**.
+Le contrat MissionRunner est publié avec son double ; une signature divergente est détectée.
+Un appel conserve le même Budget et sa deadline ; aucun arbre ou port n'entre dans les paramètres du flow.
+Échec et timeout transport sont propagés sans deuxième walk. Refus observés avant création du flow :
+API absente/distante/DNS trompeur, proxy, contexte hérité, thread secondaire et SIGALRM déjà occupé.
+
+Runtime autorisé hors sandbox : **1 passed, 12 deselected en 12,93 s** sur un serveur Prefect temporaire,
+analytics coupées avant lancement. Le profil active volontairement retries, persistance et log_prints :
+l'enveloppe les désactive. Relecture API : paramètres vides, état Completed et state.data absent.
+Une exception ne rejoue pas walk ; une alarme de 0,05 s interrompt un sleep de 1 s, exécute son finally
+et restaure SIGALRM. La marge de production reste 60 s, non calibrée. Aucun SIGKILL revendiqué.
+
+Mesure **1125 code / 1050 cible, 1500 physiques** : 46 lignes de code nouvelles, plafond justifié exact.
+La base précédente dépassait déjà la cible de 29 lignes pour la passation typée append-only, ses
+empreintes après restauration et la garde de conflit ; cette justification reste conservée ici.
+**Niveau de preuve : 5** pour la composition métier sur doubles ; **6 limité au runtime Prefect local**
+et à son interruption. Les contrôles ciblés complets et la suite racine restent à consigner avant Git.
+
+### 14:09 — incompatibilité de coexistence avec fork constatée
+
+Corpus engine/contrat/frontière : **185 passed en 11,31 s** avant le dernier test de frontière de flow.
+Ce contrôle local refuse broker/campaign/lifecycle et l'I/O réseau directe ; chaque import interdit
+injecté rend le contrôle rouge. Après ajout : **13 passed, 1 deselected en 1,19 s** sur test_flow hors
+runtime réel. Les onze STATE et diff-check passent.
+
+Première suite complète : **1 failed, 1513 passed, 3 skipped, 7 warnings en 54,54 s**. Échec exact :
+`src/lifecycle/test_lock.py::test_two_real_forks_have_one_winner`, un enfant observe correctement le
+verrou mais termine avec exitcode 1 après le test Prefect. Le runtime SDK a tourné dans le pytest
+parent ; hypothèse à vérifier : ses threads/services de fond perturbent le fork ultérieur.
+Correction dans le seul corpus engine : lancer le test réel Prefect dans un interpréteur enfant dédié,
+borné à 45 s, avant de relancer la coexistence. Aucun changement de lifecycle ni skip de contournement.
+**Niveau 5** pour le contrat ; la coexistence globale n'est pas encore verte, proposition Git suspendue.
+
+### 14:09 — isolation du smoke test Prefect
+
+La commande ciblée `src/engine/test_flow.py src/lifecycle/test_lock.py` rend **30 passed en 11,46 s**
+hors sandbox. Le test Prefect réel est exécuté intégralement dans un interpréteur enfant et son exitcode
+reste une assertion du corpus ; aucun test n'est désactivé. Le processus dédié se termine avant les
+forks lifecycle, désormais verts. Aucune production ni aucun test lifecycle n'a été modifié pour corriger
+l'échec de coexistence. La suite complète finale est relancée sur cet état.
+**Niveau 6 limité** à ces runtimes locaux ; métier toujours sur doubles.
+
+### 14:09 — clôture vérifiée de l'enveloppe
+
+Suite complète finale, Python **3.12.9/pithos**, hors sandbox : **1514 passed, 3 skipped, 7 warnings
+en 55,93 s**. Skips inchangés : contrats bridge:77 (frontière réelle sans file à charger), campaign:170
+et refinery:82 (politiques réelles sans scénario). Warnings inchangés : Starlette/httpx et six avertissements
+macOS de fork après threads. L'échec de coexistence précédent reste conservé ; aucun skip ajouté.
+Les **onze STATE** et `git diff --check` sont verts. Production **1125 code, 1500 physiques**,
+plafond justifié 1125. Pas d'installation, d'édition voisine, de modification dashboard ni de Git d'écriture.
+
+Le lot de git.md porte uniquement flow.py, son test, le double engine et les trois documents de module.
+Les anciens lots walk et CONTEXT.md sont observés commités ; aucune répétition de leurs propositions.
+**Niveau 5** pour la composition métier ; **6 limité** au runtime Prefect local et à son alarme.
+Statut **bloqué** pour l'intégration restante, pas fini : finaliseur broker, composition lifecycle et
+placement transverse des nouveaux contrats manquent encore. Aucun choix métier utilisateur nouveau
+n'est nécessaire pour l'enveloppe livrée ; le prochain agent doit prendre le chantier broker explicité.
