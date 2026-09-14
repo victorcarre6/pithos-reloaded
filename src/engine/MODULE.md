@@ -36,22 +36,24 @@ cause mécanique.
 
 ```python
 # walk.py — marcheur PUR, testable au pytest nu, sans Prefect
-def walk(tree: Tree, budget: Budget, deps: Deps) -> None: ...
+def walk(tree: Tree, budget: Budget, deps: WalkDeps) -> Tree: ...
+def finalize_green_nodes(tree: Tree, budget: Budget, deps: WalkDeps) -> Tree: ...
 
-# flow.py — l'adaptateur Prefect, mince
+# recovery.py — aucune nouvelle inférence
+def reconcile(tree: Tree, node_id: str, deps: Deps, *, tree_path, events_path) -> Tree: ...
+
+# flow.py — adaptateur Prefect prévu, pas encore livré
 @flow(name="mission", timeout_seconds=BUDGET_HARD)
 def mission(config: MissionConfig) -> None:
     tree = load_or_create(config)
-    try:
-        walk(tree, Budget(BUDGET_SOFT), deps)
-    finally:
-        finalize_green_nodes(tree)
+    walk(tree, Budget(BUDGET_SOFT), deps)
 
 # context.py
 def assemble(node: Node, budget: int) -> ContextPacket:
     "Inventaire typé : raison d'inclusion OU d'exclusion par élément, pression, évictions."
-def dump(mission_id: str, packet: ContextPacket, verdict: Verdict) -> None:
-    "Ajoute une section à CONTEXT.md. Écrit par le harness, jamais par le modèle."
+# dump.py — chemin d'artefact fourni par le harness
+def dump(section: Handoff, *, path: Path) -> None: ...
+def read(mission_id: str, *, path: Path) -> list[ContextItem]: ...
 
 # classify.py — porté de Villani, déterministe, ZÉRO appel modèle
 def analyze_instruction(text: str, index: RepoIndex) -> Analysis: ...
@@ -459,3 +461,115 @@ n'est simulé par cette tranche. Les écrivains externes non coopérants restent
 `NanoEngine` et MemoryEngine exposent ce seul contrat, vérifié dans tests/contracts/test_engine_double.py.
 Le marcheur `walk`, ses dispositions et la baseline de mission complète restent distincts et à terminer.
 Le contexte de cet essai est minimal : source capturée, consigne et critère, sans mémoire ni résumé.
+
+## Décisions locales — 14:09 : walk, reprise et finalisation
+
+`walk` compose les ports existants, sans Prefect. Son retour est le nouvel instantané `Tree`, car les
+modèles sont immuables. `WalkDeps` contient `attempt: Deps`, `finalizer: GreenFinalizer`, `tree_path`,
+`events_path`, `artifact_root`, `system`, `instruction` et éventuellement `index: RepoIndex` pour la
+décomposition déterministe. L'appelant fournit le verrou exclusif de mission et confirme l'arrêt du
+précédent propriétaire/processus avant une reprise. Un CAS ne remplace pas cette propriété lifecycle.
+
+`Tree` conserve désormais `attempts` par nœud, les `receipts` acquittés et les observations `finalized`.
+Ces champs ont un défaut vide pour les anciens arbres. Les reçus contiennent des octets encodés en hex :
+une relecture d'un document JSON utilise **`Tree.model_validate_json`**, y compris après une lecture
+JSON via journal. La validation Python de dicts reste réservée aux objets Python avec leurs `bytes`.
+Le CAS partagé revalide le document dans ce mode. `StateConflictError` distingue une version concurrente
+d'une panne de publication ; après conflit, le marcheur n'écrit plus les dispositions de cet arbre.
+
+Avant l'appel modèle, l'intention running conserve identité `(mission, nœud, tentative, relation)`,
+snapshot complet et dépôt propre. Avant splice, `workspace.prepare_splice` fournit les octets candidats
+qui entrent dans `mutation_intent`. Aucune transformation du candidat n'est réimplémentée dans engine.
+Le reçu et son verdict sont revalidés avant d'être acquittés dans l'intention passed puis dans l'arbre.
+L'événement d'acquittement engine ne crée pas un reçu : son producteur reste verifier.
+
+La reprise relit les événements durables de l'identité **réclamée dans l'arbre**. Elle accepte aussi le
+reçu `validation/node_verification` lorsque verifier a écrit avant une interruption de l'acquittement
+engine. Elle interroge workspace et le dépôt, sans rappeler le modèle :
+
+| Octets / preuves | Décision |
+|---|---|
+| Octets antérieurs observés | blocked/interrupted, aucune application du candidat enregistré |
+| Candidat connu, reçu conforme, observations concordantes | passed, puis finalisation |
+| Candidat connu sans reçu valide ou avec observations contradictoires | restauration par CAS des octets antérieurs, puis blocage explicite |
+| Octets étrangers ou snapshot ancien manquant | blocked/unverifiable, aucune restauration devinée |
+
+La restauration s'achève avant publication du statut terminal : une panne de publication ne rétablit
+pas le candidat. Les anciens running sans identité/snapshot restent bloqués. Une nouvelle invocation peut
+réadmettre `budget_limited` avec une tentative strictement nouvelle ; elle ne retente jamais ce timeout
+dans la même invocation. Les autres échecs restent terminaux, sans nouvelle politique de repair inventée.
+
+Le port de finalisation est explicite et ne dépend que de contrats kernel :
+
+```python
+class GreenFinalizer(Protocol):
+    def reconcile(self, key: RecordKey, receipt: Receipt, timeout: float) -> RepoFact | None: ...
+    def finalize(self, key: RecordKey, receipt: Receipt, timeout: float) -> RepoFact: ...
+```
+
+La composition réelle doit le fournir via broker. `reconcile` interroge l'effet par identité logique ;
+`None` signifie **absence constatée**, jamais une panne ou une interrogation incomplète. `finalize`
+persiste l'intention, publie les seuls chemins attestés, conserve le résultat et rend le dépôt observé.
+Les deux appels doivent terminer dans `timeout`, dérivé du budget restant. L'observateur RepoFact injecté
+doit lui aussi être borné par ce budget dans la composition. Une perte d'acquittement reste reprenable
+par interrogation avant une éventuelle republication. Aucun adaptateur broker réel n'est livré ici.
+
+Un vert est finalisé avant d'ouvrir le frère suivant, puisque verifier exige un dépôt propre pour chaque
+nano-étape. Engine recontrôle les octets et le RepoFact complet propre au nouveau HEAD, puis conserve
+l'acquittement dans `Tree.finalized`. Un résultat déjà acquitté ne rappelle aucun port sortant. La réserve
+souple permet cette finalisation ; si la borne dure est déjà dépassée, aucun nouvel appel sortant n'est
+admis et le vert reste à finaliser au réveil suivant. La constante de réserve reste 5 s, non calibrée.
+
+À la clôture, chaque enfant terminal reçoit `integrated` s'il est finalisé, `deferred` sinon. Son hash
+inclut le reçu ; une modification du reçu périme la disposition. Le parent structurel conserve son statut
+pending avec ses enfants, il n'est jamais transformé artificiellement en nœud vérifié sans critère.
+La baseline append-only donne `green_nodes`, `attempted_nodes`, `finalized_nodes`, `wall_seconds` et
+`exit_cause` (`completed`, `blocked`, `timeout`, `interrupted`, `error`, `state_conflict`). Les comptes
+décrivent l'instantané de mission et comptent les nœuds distincts réclamés ; le temps décrit l'invocation
+courante. Une reprise ajoute une observation, elle ne cumule pas ces snapshots comme de nouveaux verts.
+Une panne de durabilité reste une exception, sans baseline synthétique prétendument persistée.
+
+Le contexte minimal est assemblé depuis le snapshot courant : instructions, requête et schéma de sortie
+reçoivent une raison d'inclusion et une estimation caractères/4 ; 2 048 unités sont réservées à la sortie.
+L'inventaire est durable avant admission ; un irréductible trop grand bloque avec `context_overflow`.
+La passation `CONTEXT.md`, la mémoire optionnelle et l'enveloppe `flow.py` restent à terminer.
+
+Sources relues : Pi `runtime/restore.ts:131`, `drive/recovery.ts`, `drive/reconcile.ts:132`,
+`drive/terminal.ts` ; Ouroboros `task_tree_ledger.py:108-168,384-433` ; décisions 8 et 16 du projet.
+Adaptation de l'ordre des effets et des dispositions, sans importer leur runtime ni supprimer les traces.
+`MemoryEngine.walk` rejoue un arbre indépendant ; `MemoryFinalizer` conserve les publications par identité.
+Le contrat Walker et le contrôle de dérive des deux signatures du finaliseur sont testés localement.
+
+## Décisions locales — 14:09 : passation CONTEXT.md
+
+`Deps.archive: ContextArchive` utilise par défaut le module dump, et MemoryContextArchive dans les tests.
+Le chemin est `artifact_root / "CONTEXT.md"`, racine de mission fournie par la composition et protégée par
+son verrou exclusif. L'archive appartient à engine ; la lecture des sources demeure sur le port workspace.
+Une section est ajoutée à la sortie de chaque tentative ayant assemblé un ContextPacket, après sortie
+de transaction. Le snapshot frais porte donc les octets restaurés sur échec. Après conflit de version,
+aucune écriture de passation ne prolonge le travail du propriétaire périmé.
+
+Handoff conserve identité, paquet complet, statut observé de l'arbre, verdict conforme au critère s'il a
+été obtenu et empreintes fraîches. Un statut running après exception reste running, avec résultat inconnu.
+Un rapport d'un autre critère est conservé dans verification_report et refusé ; aucun verdict de repli.
+La passation est un historique, jamais un reçu ni une autorisation de finaliser.
+
+Le Markdown comprend une projection déterministe des métadonnées et un bloc JSON versionné contenant
+le paquet intégral. La relecture revalide ce bloc et reconstruit la projection : identité, critère, statut,
+budget, évictions, inventaire avec raisons et axes du verdict avec ses hashes source. Les contenus des
+anciens items restent archivés intégralement ; ils ne sont pas réinjectés sous une empreinte fraîche.
+Il n'y a aucun résumé généré ni remplacement du contenu d'un item courant.
+
+Les passations de la mission précèdent les trois items requis lors de l'assemblage. Chacune reste
+optionnelle, soumise à stale et au FIFO existants ; le rendu transmis à bridge inclut les omissions.
+System et schema restent sur leurs arguments dédiés, tout en consommant le budget d'admission.
+Le producteur courant observe seulement le fichier cible : toute autre empreinte absente est périmée
+par prudence. Aucun parcours supplémentaire du dépôt ni index de mémoire n'est inventé.
+
+Append en binaire, flush puis fsync ; aucune réécriture ou réparation du passé. Une archive inconnue,
+invalide ou tronquée refuse la nouvelle admission avec cause explicite. Une panne d'écriture est propagée,
+sans annuler un vert déjà acquitté. Une interruption brutale peut laisser la dernière section incomplète ;
+les traces durables et tree.json restent l'autorité de reprise, pas le fichier de passation.
+La lecture complète de l'archive reste une simplification déclarée à mesurer avant indexation.
+L'enveloppe flow.py reste le prochain travail engine ; l'adaptateur réel GreenFinalizer demeure à fournir
+par la composition/broker, sans import ascendant ici.

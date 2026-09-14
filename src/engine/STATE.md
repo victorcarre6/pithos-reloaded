@@ -1,17 +1,29 @@
 # STATE — `engine`
 
 **Statut** : en cours
-**Mise à jour** : 13:09
-**Lignes** : 673 code / 1050 cible · 930 physiques
-**Empreinte** : 6ec4de1075b2deb88480af06acf8b474670177a0781210ad4fcbd9cde15549d6
+**Mise à jour** : 14:09
+**Lignes** : 1079 code / 1050 cible · 1435 physiques
+**Empreinte** : 9ba86eb30850cc0b93005ce72bc6e824b58038413cf868baeb64e2a6e95a70bb
+**Plafond justifié** : 1079 code
+**Justification** : La passation ajoute 118 lignes à la base walk de 961 : format typé, relecture validée, archive append-only fsync et raccordement après restauration avec garde de conflit. Le rendu seul annoncé à ~30 lignes ne couvre pas ces garanties ; dépassement global de 29 lignes, aucun moteur de résumé ni dépendance ajouté.
 
 ## Prochaine action
 
-Composer walk autour de run_attempt : commencer par un test de reprise/réconciliation d'un nœud running sans réexécution, puis finalisation des verts et baseline. L'instrumentation est vérifiée. Le trial-44kcg6ig a été exécuté en réel et refusé sur tautology ; ses octets ont été restaurés, aucune nouvelle initialisation Git n'est nécessaire.
+Implémenter flow.py comme enveloppe Prefect de walk : publier l'entrée de mission recevant l'arbre, le budget et WalkDeps depuis la composition ; tester un seul appel à walk, sans retry ni état métier Prefect, avec kill de dernier recours au-delà de la borne dure. Garder les imports Prefect hors du marcheur pur. L'exécution réelle attend toujours GreenFinalizer et le verrou lifecycle décrits dans Blocages. La passation CONTEXT.md est livrée, suite complète verte ; le dernier lot de git.md couvre les treize fichiers non commités de walk et de la passation.
 
 ## Avancement
 
-_Recopie ici la liste « Fini quand » de `MODULE.md` et coche au fur et à mesure._
+- [x] Un nœud sans critère exécutable n'atteint jamais le modèle ; états légaux testés, running/passed sans critère refusés par kernel.
+- [x] Profondeur 3 et cap_children appliqués, y compris après relecture de l'arbre.
+- [x] Réserve souple : finalisation des verts sur port injecté ; arbre et frères non commencés reprenables.
+- [x] Walk complet sans import Prefect, subprocess ou Ollama dans son corpus.
+- [x] Inventaire typé, une raison par élément ; contexte minimal courant raccordé à run_attempt.
+- [x] Éviction FIFO et inventaire conservé dans les tests du contexte.
+- [x] Irréductible trop volumineux : blocked/context_overflow avant le modèle.
+- [x] Projection CONTEXT.md puis exclusion d'une section périmée jusque dans le prompt réel du port bridge.
+- [x] Baseline durable à chaque sortie dont le journal accepte encore les écritures.
+- [x] Disposition par enfant, liée au reçu pour les résultats exécutés ; historique conservé.
+- [x] Frontière et contrat NanoEngine partagés verts ; contrat Walker testé localement, placement transverse restant à effectuer.
 
 ## Journal
 
@@ -50,6 +62,9 @@ rend son test de frontière rouge, et une signature de double divergente rend so
 | Source candidate du modèle | `AGENTS.md` contrainte dure n°1 interdit tout littéral du modèle à l'exécution ; `workspace/MODULE.md` § 1 prévoit `{function_name, new_source}` généré. Les décisions 2 et 21 de `docs/EXPLANATIONS.md` ne lèvent pas explicitement cette contradiction. | Arbitrer la contrainte ou publier un catalogue fermé de transformations ; aucune route de génération de code ne sera inventée ici. Question posée le 10:09. | **Résolu le 12:09** — l'utilisateur autorise le code candidat sous critères et entrées contrôlés par le harness. |
 | Attestation de l'effet réel | `SourceVerifier.check_sources` et `emit_receipt` attestent seulement les sources, avec `effect=unproven`. `kernel.Fact` ne porte pas les snapshots source ni `RepoFact` attendus par verifier. | Publier ces contrats dans kernel et leurs producteurs/doubles, puis la gate complète de verifier. | **Résolu le 12:09** — faits canoniques, producteurs et `Verifier.run` ; 1 349 tests verts avant la dernière garde de budget. |
 | Placement des tests transverses | `AGENTS.md` § 11 exige `tests/contracts/` et `tests/boundaries/`, mais § 6 interdit leur écriture par engine. | Tests locaux dans `src/engine/` en attendant une autorisation de placement ou un agent chargé de ces répertoires. | **Résolu le 10:09** — déplacés par la passe transverse ; suite complète verte. |
+| Finalisation réelle de walk | `broker.commit` ne reçoit ni identité logique de vérification, ni deadline ; `broker.intent.resume` fournit les primitives mais aucun adaptateur ne compose interrogation, commit borné et observation. Engine ne peut importer broker ni modifier son code. | Publier côté composition/broker un objet conforme à GreenFinalizer : reconcile(key, receipt, timeout) interroge l'effet par identité et rend RepoFact ou None ; finalize(key, receipt, timeout) publie les seuls chemins attestés, persiste l'effet puis rend un RepoFact complet propre. Fournir le verrou de mission lifecycle autour de walk. | — ; niveau 5 sur MemoryFinalizer uniquement. |
+| Placement du nouveau contrat Walker | Le contrat NanoEngine partagé demeure intact ; le nouveau corpus Walker/GreenFinalizer est dans src/engine/test_walk.py, seul périmètre autorisé. | Passe transverse : déplacer ce corpus dans tests/contracts/test_engine_double.py et marquer walk livré dans docs/ARCHITECTURE.md avec la signature de MODULE.md. | — |
+| Placement du contrat ContextArchive | Le port et le double sont testés dans src/engine/test_dump.py, avec mutation des deux signatures ; tests/contracts reste hors périmètre engine. | Passe transverse : déplacer ce contrôle dans tests/contracts/test_engine_double.py, sans changer le métier. | — |
 
 ## Décisions locales
 
@@ -274,3 +289,97 @@ relu par HTTP dans l'observatoire. Ce cas garde bridge et Git scénarisés : **n
 la composition, **niveau 6 limité à la lecture locale**. Le trial historique reste inchangé.
 Les 673 lignes de production tiennent la cible 1050. La prochaine unité est walk avec réconciliation,
 pas un nouvel essai destiné à transformer le refus historique en vert.
+
+### 14:09 — walk vérifié sur doubles : reprise, finalisation et baseline
+
+Le dashboard est déclaré terminé pour le moment par l'utilisateur ; aucun fichier observatory n'a été
+modifié. État Git initial propre, branche baseline-harness synchronisée avec origin. Python **3.12.9**
+du venv pithos confirmé avant tests. Aucun Git d'écriture, aucune dépendance ajoutée.
+
+Tests écrits avant code : **1 erreur de collecte** pour recovery absent, puis **1 erreur de collecte**
+pour WalkDeps absent. Première composition : **4 failed / 128 passed** ; les SourceFact stricts encodés
+en hex exigeaient une relecture JSON, corrigée dans le CAS partagé et la relecture de clôture.
+Deux régressions de restauration ont été observées séparément (**1 failed / 8 passed**, puis
+**1 failed / 9 passed**) : reçu invalide et dépôt contradictoire empêchaient de restaurer le candidat
+connu. Le chemin commun restaure maintenant ce candidat avant de publier le blocage. Les octets étrangers
+restent conservés. Préflight du contexte : **2 failed / 16 passed** avant raccordement de l'inventaire.
+
+Le marcheur réclame une identité nouvelle par admission, réconcilie les running sans nouvel appel modèle,
+finalise chaque vert avant le frère suivant, conserve dispositions et baseline. Scénarios observés :
+deux verts successifs, réserve souple, deadline dure sans nouvel effet, timeout sans boucle dans la même
+invocation, reprise budget_limited, modèle interrompu, reçu verifier sans acquittement engine, perte
+d'acquittement de publication, dépôt sale/étranger, source modifiée pendant finalisation, CAS concurrent,
+restauration survivant à une panne du tree.json, baseline relisant la tentative durable après exception.
+Le reçu participe au hash de disposition ; les anciennes dispositions ne sont pas supprimées.
+
+Contrôles ciblés finaux : **152 passed en 0,75 s** sur src/engine, contrat NanoEngine et frontière.
+Un import Prefect forcé indisponible couvre aussi le walk complet. Dérive de signature détectée pour Walker
+et les deux méthodes GreenFinalizer. **961 code / 1050 cible**, **1278 physiques**.
+
+Première suite complète : **1477 passed, 3 skipped, 7 warnings en 44,34 s**, avant les trois dernières
+régressions de finalisation/contrat/reprise. Le contrôle des onze STATE passait à 959 lignes engine.
+La suite finale après ces corrections est en cours ; son résultat sera ajouté avant proposition Git.
+
+**Niveau de preuve : 5** — workspace, bridge, verifier, journal et publication sur doubles officiels.
+Le port réel de finalisation reste un blocage explicite de composition/broker ; aucun commit Git ni
+premier vert avec Ollama n'est revendiqué. Le refus réel historique sur tautology reste inchangé.
+
+### 14:09 — clôture vérifiée de l'unité walk
+
+Suite complète finale dans **pithos / Python 3.12.9** : **1480 passed, 3 skipped, 7 warnings en 43,90 s**.
+Skips conservés : tests/contracts/test_bridge_double.py:77 (frontière réelle sans file scénarisable),
+test_campaign_double.py:170 et test_refinery_double.py:82 (politiques réelles sans scénario à charger).
+Warnings conservés : Starlette/httpx, six avertissements macOS de fork après threads. Aucun nouveau skip.
+Le contrôle **des onze STATE** et `git diff --check` passent. Le diff est limité à engine et son double.
+Production finale **961 code / 1050**, **1278 physiques**, sans relèvement de cible.
+
+La proposition du 14:09 dans git.md couvre les onze fichiers de cette unité et reste non exécutée.
+**Niveau de preuve : 5 pour walk**, aucune publication Git réelle exercée. La prochaine unité engine
+indépendante est la passation CONTEXT.md ; le port broker manquant reste décrit sans modification voisine.
+
+### 14:09 — passation append-only raccordée aux tentatives
+
+Reprise dans Python **3.12.9/pithos** ; les onze fichiers walk non commités sont conservés. Aucun Git
+d'écriture et aucun changement du dashboard. Les sources Villani context_projection.py,
+context_governance.py et summarizer.py ne sont plus présentes sous resources ; lectures négatives
+conservées. dump.py est une implémentation originale sur ContextPacket existant, sans nouvelle copie
+de source tierce ni réintroduction de compaction.
+
+Tests avant code : **1 erreur de collecte**, engine.dump absent ; puis **4 passed / 4 errors**, fixture
+appelant kernel_double.record_key inexistant. Correction par construction du RecordKey canonique,
+sans changement de kernel. Première série **8 passed / 1 warning** ; enum de fixture corrigée.
+Branchement avant implémentation de Deps.archive : **9 passed / 22 errors** (argument archive absent).
+Après raccordement : **165 passed en 0,89 s** ; corpus complété : **172 passed en 0,88 s** sur src/engine,
+contrat NanoEngine et frontière, sans warning.
+
+Chaque tentative ayant assemblé son contexte ajoute sa section après sortie de transaction, donc après
+restauration éventuelle. Les tests observent les empreintes AFTER sur vert et BEFORE sur les quatre
+sorties non vertes ; crash de gate sans verdict synthétique, conflit CAS sans écriture de passation,
+panne d'archive après vert sans retour arrière d'un effet déjà acquitté. Un verdict d'un autre critère
+reste dans verification_report et bloque ; il n'est pas attaché à la passation du critère courant.
+
+Sur fichier temporaire réel : ajout préservant tous les octets antérieurs, archive complète relisible,
+refus des formats inconnus et queues déchirées, fsync en échec visible, identité étrangère refusée avant
+append. Les clôtures Markdown dans un ancien contenu ne créent pas de section supplémentaire.
+Sur bridge officiel scénarisé : passation fraîche admise, ancienne source absente du prompt, passation
+périmée exclue avec stale, passation trop grande évincée avec budget_pressure. L'inventaire conserve
+les contenus écartés. Le double mémoire satisfait ContextArchive ; une signature divergente est détectée.
+
+**Mesure : 1079 code / 1050 cible, 1435 physiques**, dépassement justifié ci-dessus. **Niveau de preuve : 5**
+pour la composition sur doubles ; effet disque de l'archive réellement constaté. Aucun essai Ollama ni
+finalisation Git réelle. Suite complète et contrôle des onze STATE à consigner avant livraison.
+
+### 14:09 — clôture vérifiée de la passation
+
+Suite complète hors sandbox, sockets locales et processus macOS autorisés : **1500 passed, 3 skipped,
+7 warnings en 44,03 s**, dans **pithos / Python 3.12.9**. Les trois skips restent ceux des contrats
+bridge:77, campaign:170 et refinery:82 : implémentations réelles sans scénario à charger. Warnings
+inchangés : Starlette/httpx et six avertissements fork après threads. Aucun nouveau skip.
+Contrôle des **onze STATE** et `git diff --check` verts. Production **1079 code, 1435 physiques**,
+plafond justifié 1079 ; aucune marge de croissance ajoutée. **Niveau 5 sur doubles** pour la chaîne.
+
+La dernière proposition git.md couvre l'état courant complet des treize fichiers : walk n'a pas été
+commité et ses fichiers partagés importent désormais dump.py. Elle remplace opérationnellement la
+proposition walk seule, conservée dans l'historique, afin d'éviter un commit sans le nouveau module.
+Aucune commande Git d'écriture exécutée. La prochaine unité est l'enveloppe flow.py ; la finalisation
+réelle et le placement des contrats restent les blocages externes documentés.

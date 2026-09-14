@@ -201,3 +201,66 @@ gcmsg "engine: budgète la notice des omissions de contexte"
 **Contient** : Comptes par raison fermée, séparateur compris dans le coût estimé, recalcul après chaque éviction FIFO, aucune fuite du texte exclu. Décision et preuves dans MODULE.md/STATE.md du lot précédent. Branchement au marcheur encore prévu.
 **Tests verts** : src/engine/test_context.py ; 116 tests engine/contrat/frontière lors de l'incrément. Suite complète : **1 444 passed, 3 skipped, 7 warnings en 43,83 s**, Python 3.12.9/pithos ; contrôle des onze STATE vert.
 **Exécuté** : —
+
+## Proposé le 14:09 — reprendre les missions depuis leurs preuves durables
+
+**Intention** : Exécuter un walk reprenable dont les résultats verts sont finalisés par identité logique.
+
+```sh
+ga src/engine/walk.py \
+   src/engine/recovery.py \
+   src/engine/attempt.py \
+   src/engine/tree.py \
+   src/engine/test_walk.py \
+   src/engine/test_recovery.py \
+   src/engine/test_attempt.py \
+   tests/doubles/engine.py \
+   src/engine/MODULE.md \
+   src/engine/STATE.md \
+   src/engine/git.md
+gcmsg "engine: reprend les missions depuis leurs preuves durables"
+```
+
+**Contient** : WalkDeps/Walker et GreenFinalizer, identités de tentative persistées, snapshots avant effet,
+réconciliation sans inférence, restauration du candidat connu, finalisation interrogée avant rejeu,
+dispositions liées aux reçus, baseline de clôture et admission du contexte courant. Double scénarisé,
+contrôles de signatures et scénarios de coupure inclus. Cas nominal à deux verts successifs testé.
+**Ne contient pas** : Adaptateur Git réel, enveloppe lifecycle/Prefect, projection CONTEXT.md ; leurs
+contrats et prochaines actions sont explicités dans MODULE.md/STATE.md. Aucun changement du dashboard.
+**Tests verts** : **152 passed** sur src/engine, tests/contracts/test_engine_double.py et
+tests/boundaries/test_engine.py ; suite complète **1480 passed, 3 skipped, 7 warnings en 43,90 s**,
+Python 3.12.9/pithos. Contrôle des onze STATE et git diff --check verts. **Niveau 5 sur doubles**.
+**Exécuté** : —
+
+## Proposé le 14:09 — reprendre une mission avec sa passation vérifiée
+
+**Intention** : Reprendre une mission avec une passation vérifiée sous empreintes fraîches.
+
+**État courant** : la proposition walk ci-dessus n'a pas été exécutée. Les fichiers partagés contiennent
+maintenant le raccordement à dump.py. Utiliser **ce lot complet à la place du lot walk seul** pour l'état
+actuel ; ne pas exécuter successivement les deux propositions. L'ancienne reste conservée comme historique.
+
+```sh
+ga src/engine/walk.py \
+   src/engine/recovery.py \
+   src/engine/attempt.py \
+   src/engine/tree.py \
+   src/engine/dump.py \
+   src/engine/test_walk.py \
+   src/engine/test_recovery.py \
+   src/engine/test_attempt.py \
+   src/engine/test_dump.py \
+   tests/doubles/engine.py \
+   src/engine/MODULE.md \
+   src/engine/STATE.md \
+   src/engine/git.md
+gcmsg "engine: reprend les missions avec une passation vérifiée"
+```
+
+**Contient** : unité walk précédente, passation append-only par tentative, empreintes après restauration,
+relecture validée, sélection ou exclusion jusqu'au prompt bridge, double mémoire et contrat mordant.
+Le JSON complet préserve les anciens contenus ; seule la projection déterministe admise est réinjectée.
+**Ne contient pas** : adaptateur Git réel, enveloppe Prefect/lifecycle, modification du dashboard.
+**Tests verts** : **172 passed** sur src/engine, contrat NanoEngine et frontière ; suite complète
+**1500 passed, 3 skipped, 7 warnings en 44,03 s**, Python 3.12.9/pithos ; onze STATE et diff-check verts.
+**Exécuté** : —
