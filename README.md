@@ -42,15 +42,15 @@ pyenv activate pithos                    # Python 3.12.9, figé dans pyproject.t
 pip install -r requirements.txt
 ```
 
-**État au 13:09 : les onze modules contiennent du code ; aucun n'est déclaré fini.** La suite passe
-**1 444 tests** dans Python 3.12.9 / pithos (3 skips, 7 warnings), plus **8 tests web** et le build Vite.
-Le code candidat est autorisé sous
-validation du harness ; une nano-étape transactionnelle passe les scénarios vert et rollback sur disque.
-Le [banc audio](experiments/visualizer/README.md) adapte l'idée du précédent visualiseur. Sa sonde Ollama
-réelle passe ; le dépôt dédié est initialisé. Le trial réel `trial-44kcg6ig` a été **refusé sur tautology**,
-sans reçu, avec restauration exacte. Le dashboard expose son état publié, ses cinq gates et ses traces.
-Le marcheur complet, la reprise après interruption et le jalon de mission restent à livrer.
-Voir [QUICK_CATCH.md](docs/QUICK_CATCH.md) pour l'état mesuré et les prochaines actions.
+**État au 15:09 : les onze modules contiennent du code ; aucun n'est déclaré fini.** La suite complète
+a passé **1 602 tests** dans Python 3.12.9 / pithos ; voir [QUICK_CATCH.md](docs/QUICK_CATCH.md)
+pour les mesures, skips et limites. Le dashboard est déclaré terminé pour le moment.
+
+**Premier vert avec Ollama local** : le [banc audio](experiments/visualizer/README.md) utilise désormais
+`unit_projection` pour vérifier la projection exacte sur [0, 1]. `trial-25ugxn94` passe en **44,898 s**
+avec trois gates, un reçu durable, un effet confirmé et le fichier corrigé conservé sans commit.
+L'ancien refus `trial-44kcg6ig` reste intact. Walk, flow, GreenFinalizer et custody sont composés
+et testés sur runtime local avec modèle simulé ; le nouveau trial ne finalise pas de commit Git.
 
 ## Observatoire local
 

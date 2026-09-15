@@ -41,6 +41,7 @@ def test_main_preserves_reports_and_exit_codes(case, cause):
     report = json.loads(completed.stdout)
     assert report["cause"] == cause
     assert report["checks_passed"] is True
+    assert report["criterion"]["relation"] == "unit_projection"
     output = Path(report["evidence_directory"])
     assert json.loads((output / "result.json").read_text()) == report
     seed = run.SEED.read_bytes()

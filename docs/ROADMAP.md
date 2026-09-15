@@ -94,9 +94,10 @@ prouvent qu'elles s'emboîtent. Voir décisions 32 et 33.
   dans `tests/doubles/`. Test de conformité double ↔ implémentation, pour que le double ne dérive pas.
 - [TODO] **Test de graphe d'imports des trois règles** : `verifier` sans le bridge ni le modèle, `bridge`
   sans `engine`, et `broker` seul module d'egress. → `pi/scripts/check-entry-graphs.mjs:33`
-- [TODO] **Jalon « premier vert », de bout en bout et à la main** : une nano-étape, un invariant d'une seule
+- [DONE] **Jalon « premier vert », de bout en bout et à la main** : une nano-étape, un invariant d'une seule
   relation, un mutation-check, un reçu, un fichier de campagne réellement modifié. Ne qualifie rien ;
-  détecte une erreur de découpe pendant qu'elle coûte encore peu.
+  détecte une erreur de découpe pendant qu'elle coûte encore peu. Constaté le 15:09 dans
+  trial-25ugxn94 sous unit_projection ; un reçu durable, trois gates et un fichier modifié.
 
 ## P0 — Socle d'état et de traces
 
@@ -801,8 +802,8 @@ Non implémenté au socle. Activé seulement si le mode `direct` plafonne, et av
 - [DONE] Valider la suite racine dans Python 3.12.9 / pithos : **1 286 passed, 3 skipped, 7 warnings en 34,59 s**.
 - [TODO] Humain : exécuter les propositions de `tests/git.md`, notamment le retrait de l’index des
   **27 caches suivis** et l’ajout des documents désormais visibles. Aucun Git d’écriture exécuté.
-- [TODO] Reprendre les livraisons métier depuis les STATE puis démontrer le jalon « premier vert » ;
-  la passe transverse ne valide pas les cases des modules. Voir `QUICK_CATCH.md` pour les dépendances.
+- [DONE] Jalon « premier vert » démontré le 15:09 dans trial-25ugxn94 ; les autres livraisons
+  métier restent suivies dans leurs STATE. Aucun module déclaré fini sur ce seul résultat.
 
 ## Chaîne de faits vers le premier vert — 12:09
 
@@ -830,11 +831,11 @@ Les cases ci-dessus livrent des unités ; elles ne déclarent aucun module fini 
 - [DONE] Sonder le modèle Ollama réel ; conserver la troncature initiale puis le critère conforme.
 - [DONE] Humain : dépôt dédié initialisé, HEAD 57e47c5 constaté le 13:09.
 - [DONE] Trial réel trial-44kcg6ig conservé : tautology, 0 reçu, rollback exact, 5 gates.
-- [TODO] Composer walk autour de run_attempt avec reprise/réconciliation, finalisation et baseline.
+- [DONE] Composer walk/flow avec reprise, finalisation broker et worker lifecycle ; preuve intégrée sur Git/Prefect réels, modèle simulé (14:09).
 - [TODO] Définir domaine de tableaux et relations avant les essais bass/mid/treble et lissage.
 
-Le trial valide le schéma candidat mais refuse sa vérification faute de sensibilité aux mutants. Aucune mission complète ni borne
-murale globale n'est revendiquée ; l'essai scalaire ne valide pas le contrat complet du visualiseur.
+Le trial du 13:09 valide le schéma candidat mais refuse sa vérification faute de sensibilité aux mutants.
+Il ne valide ni la mission composée livrée le 14:09, ni le contrat produit complet du visualiseur.
 
 ## Observabilité et références J–K — 13:09
 
@@ -844,7 +845,7 @@ murale globale n'est revendiquée ; l'essai scalaire ne valide pas le contrat co
 - [DONE] Omissions de ContextPacket visibles et comptées dans son budget estimé.
 - [DONE] Contrôle documentaire de 20 interfaces livrées sur 11 modules ; prévu distingué de livré.
 - [DONE] GVS5H/Graphify catalogués sélectivement, avec les limites et reprises écartées.
-- [TODO] Vérification visuelle du dashboard : aucun navigateur accessible dans la session ; build et HTTP validés.
+- [DONE] Dashboard déclaré fonctionnel et terminé pour le moment par l’utilisateur ; aucune nouvelle vérification visuelle revendiquée par l’agent (14:09).
 - [TODO] Relier ContextPacket et la mesure de non-progrès par faits au marcheur complet, lors de sa composition.
 
 
@@ -854,3 +855,32 @@ murale globale n'est revendiquée ; l'essai scalaire ne valide pas le contrat co
 - [DONE] Conserver le JSON hors terminal et vérifier l'interruption après splice en pseudo-terminal.
 - [TODO] Raccorder les futurs tours du marcheur lorsque son contrat de reprise sera livré ; le TUI
   actuel expose les événements de la nano-étape disponible.
+
+
+## Composition de mission — 14:09
+
+- [DONE] GreenFinalizer : reçu durable, intention avant commit, deadline commune, interrogation avant rejeu.
+- [DONE] Worker lifecycle : admission durable, verrou vivant préservé, groupe récolté, reprise des orphelins.
+- [DONE] CLI mission.py : même --run à la reprise, budget ancré avant spawn et sonde, serveur Prefect explicite.
+- [DONE] Réconcilier un leader zombie sans signal, après constat natif d'absence de membres vivants (15:09).
+- [DONE] Vérifier coupure après splice, restauration à la reprise et commit sans acquittement sur runtime local.
+- [DONE] Consolider les contrats Walker/MissionRunner/GreenFinalizer et la frontière flow dans les corpus partagés (15:09).
+- [DONE] Reproduire et expliquer les trois mutants survivants du trial-44kcg6ig ; contre-exemple [0,2] à branches accepté par idempotence, limites documentées (15:09).
+
+Suite complète : **1 568 passed, 3 skipped, 7 warnings en 103,09 s**. Le modèle reste simulé dans
+la preuve de composition ; aucune nouvelle expérience Ollama, aucun push ni PR.
+
+
+- [DONE] **Blocage de clôture du 14:09 résolu** : port verifier relié aux gardiens lifecycle,
+  groupes enregistrés avant admission ; vraie gate coupée et orphelins récupérés avant reprise.
+  La contre-preuve initiale reste dans les STATE ; CLI réouverte et reprise effective testée.
+
+## Projection exacte — 15:09
+
+- [DONE] Extension explicitement autorisée : relation unaire fermée unit_projection sur floats_finite.
+- [DONE] Identité sur [0, 1], saturation, sortie numérique bornée et idempotence ; aucun seuil fourni par le modèle.
+- [DONE] Comparaisons exactes et onze exemples fixes ; deux écritures correctes acceptées, 19 variantes incorrectes refusées.
+- [DONE] Nouveaux trial/mission raccordés ; critères et reçus historiques inchangés, relation affichée à la reprise.
+- [DONE] Rejouer les sources archivées : nouvelle double gate verte, 44 fichiers historiques inchangés.
+- [DONE] Premier vert Ollama trial-25ugxn94 : 44,898 s, trois gates, un reçu effect confirmed, fichier réellement modifié.
+- [TODO] Mission composée avec Ollama sur un nouveau dépôt seed ; le trial vert ne finalise pas de commit Git.

@@ -129,7 +129,7 @@ def frame(args, output, state, elapsed, width, height):
     project = [
         f"Banc audio · {args.mode} {scenario}",
         f"Dépôt : {repo}" if args.mode != "probe" else "Admission du modèle local",
-        "Cible : clamp_level · idempotent" if args.mode != "probe" else "Critère structuré · JSON strict",
+        "Cible : clamp_level · projection [0, 1]" if args.mode != "probe" else "Critère structuré · JSON strict",
         f"Run : {output.name}",
         f"Preuves : {output}",
         budget,

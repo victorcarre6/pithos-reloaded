@@ -72,6 +72,7 @@ fichiers approuvés.
 |---|---|---|
 | `round_trip` | `g(f(x)) == x` | `f`, `g` |
 | `idempotent` | `f(f(x)) == f(x)` | `f` |
+| `unit_projection` | identité sur [0, 1], saturation aux bornes, sortie numérique bornée, idempotence | `f` |
 | `commutes_with` | `f(g(x)) == g(f(x))` | `f`, `g` |
 | `preserves` | `p(f(x)) == p(x)` | `f`, `p` |
 | `invariant_under` | `f(t(x)) == f(x)` | `f`, `t` |
@@ -79,6 +80,10 @@ fichiers approuvés.
 | `total` | `f(x)` ne lève jamais sur le domaine | `f` |
 | `raises_on` | `f(x)` lève exactement `E` | `f`, `E` |
 | `schema_conform` | la sortie valide le JSON Schema de l'outil | `tool` |
+
+**Amendement approuvé le 15:09** : `unit_projection` étend le catalogue à dix relations.
+Elle ne s'exécute que sur floats_finite. Bornes 0 et 1, comparaisons exactes et exemples de
+frontière appartiennent au harness. Les anciens critères idempotent et reçus restent inchangés.
 
 La sortie structurée attendue du modèle est donc :
 
@@ -3109,3 +3114,112 @@ Les onze STATE passent. La lecture réelle par le proxy web confirme les cinq ga
 2 461 tokens et le SHA restauré ; un nouveau selftest expose son rapport durable.
 **Niveau 5** sur contrats, **4** pour jsdom, **6 limité à la lecture HTTP et aux fichiers locaux**.
 Le contrôle visuel reste ouvert : l'outil CUA ne fournit aucun navigateur dans cette session.
+
+
+### 14:09 — journal : GreenFinalize et composition lifecycle
+
+La demande de poursuivre après flow conduit à un adaptateur broker qui relit le reçu durable et
+reconnaît le commit par son parent, son chemin, ses octets et l'identité de vérification complète.
+Une perte d'acquittement ne rejoue plus le commit. Le worker spawn de lifecycle garde un leader
+identifiable jusqu'à la récolte du groupe. Le verrou vivant n'est plus repris sur simple expiration.
+L'arbre demeure l'autorité métier ; le serveur Prefect est local, explicite, sans analytics dans le
+smoke test, et ne reçoit ni paramètres ni résultat métier. mission.py partage l'ancre Budget depuis
+le parent et utilise le même répertoire de preuves pour chaque reprise.
+
+Test intégré : modèle seul simulé, les autres composants locaux réels. Commit unique, rollback rouge,
+coupure avant reçu suivie de restauration et sweep d'un superviseur mort sont observés. Suite finale
+**1 548 passed, 3 skipped, 7 warnings en 87,81 s** ; STATE et diff-check verts. Les traces du trial
+Ollama négatif restent intactes. Les contrats engine encore locaux restent la prochaine consolidation.
+
+
+### 14:09 — contre-preuve : le groupe de verifier échappe au watchdog
+
+La revue constate start_new_session=True dans verifier/runner.py. Une sonde jetable confirme qu'un
+invariant détaché survit à l'arrêt du worker : 1 failed en 2,22 s, puis nettoyage explicite du groupe.
+Les 1 548 tests verts ne couvraient pas cette topologie ; le scénario cut bloquait avant le spawn.
+La CLI opérateur est donc suspendue. L'extension à verifier est demandée conformément à AGENTS § 6
+pour exposer le port de lancement nécessaire, sans affaiblir les critères ou les gates.
+
+### 14:09 — résolution : invariants sous custody du superviseur
+
+Après autorisation explicite d'étendre à verifier, son runner publie un port d'exécution contextuel.
+La composition le lie à lifecycle ; aucun import d'un module voisin n'est ajouté. Le superviseur
+réutilise son admission et son pipe pour un gardien par gate, propriétaire commun, journal unique.
+Le gardien conserve une identité vivante jusqu'à la récolte du groupe ; les commandes restent celles
+du harness, les fichiers appartiennent à verifier et les verdicts restent contrôlés par les gates.
+
+Le test cut exécute maintenant un vrai invariant qui lance un descendant et se bloque. Le watchdog
+arrête les deux ; la reprise restaure le fichier sans reçu. La mort du superviseur est aussi injectée
+pendant une vraie gate : le suivant sweep avant d'admettre son worker. La CLI reprend un vert existant
+sans modèle et sans second commit. L'arrêt des groupes gérés est prouvé, pas un confinement hostile.
+
+Ciblés : 23 passed en 44,47 s. Suite complète : **1 556 passed, 3 skipped, 7 warnings en 100,50 s**, Python 3.12.9/pithos.
+STATE et diff-check verts. Le refus initial du trial Ollama reste intact ; les faux positifs de preuve
+et les rouges de développement sont conservés dans les STATE. La suspension de la CLI est levée.
+**Niveau 5 pour la mission composée** (modèle simulé), **6 pour les effets locaux observés**.
+
+### 15:09 — limites de sensibilité et consolidation des contrats
+
+Le rejeu exact de trial-44kcg6ig reproduit le refus tautology et ses trois mutants survivants.
+Les 44 fichiers initiaux sont inchangés, SHA-256 vérifiés. Une projection [0,2] écrite à branches
+passe pourtant la double gate idempotente. C'est la limite explicitement annoncée du banc : un kill
+sur un inventaire AST ne prouve pas des bornes absentes du critère. L'analyse est conservée dans
+src/verifier/SENSITIVITY.md ; aucune mutation opportuniste ni modification des gates n'est introduite.
+
+Le scanner partagé engine exemptait tout flow.py ; une injection socket le démontre rouge avant
+correction. Seul Prefect est désormais exempté, et flow.py est testé comme chaque fichier sur copie.
+Les contrats Walker/MissionRunner/GreenFinalizer sont consolidés dans tests/contracts, avec dérives
+injectées par méthode et par nature de paramètre. Les anciens tests locaux restent en place.
+
+Ciblés : 164 passed en 22,32 s. Suite complète **1 568 passed, 3 skipped, 7 warnings en 103,09 s**, Python 3.12.9/pithos.
+STATE et diff-check verts, mêmes skips et warnings. **Niveau 5 sur doubles et contrats**, 4 pour les
+invariants réellement exécutés sur copies. Aucun nouveau trial Ollama ni Git d'écriture.
+
+### 15:09 — premier vert réel sous unit_projection
+
+Le nouveau trial-25ugxn94 utilise tous les composants réels, Ollama inclus : **passed** en
+44,89811025001109 s pour la tentative, deux appels et 3 350 tokens rapportés (1 227 + 2 123).
+Configuration num_ctx 16384 relue par ollama show ; provenance de la capacité toujours asserted.
+
+Relecture indépendante des preuves : exactement trois résultats de gates failed/failed/passed,
+un seul reçu durable lié à unit_projection avec effect confirmed, arbre passed, fichier cible
+modifié et SHA-256 correspondant au rapport. Avant :
+40818e8d40d125b69d8e75dff8fcaab1040dace8d87e7e06b9d8362fba577bf5 ; après :
+2699717e89232fcd6ae0eee5395eb8122e67d2ffe9b3f39c9439f83c065f1b29.
+La correction produite est max(0.0, min(1.0, level)). Les 44 fichiers du trial-44kcg6ig
+restent inchangés, empreintes de nouveau comparées après l'essai.
+
+Le fichier vert est conservé dans experiments/visualizer/workspace/audio_visualizer.py ;
+aucun commit, push ni autre Git d'écriture exécuté par l'agent. Ce trial ne passe pas par
+Prefect/GreenFinalizer : tree.finalized reste vide. Pour une future mission composée, préparer
+un nouveau dépôt seed et un nouveau --run ; ne pas réinitialiser le workspace vert.
+**Niveau de preuve atteint** : 6 pour cette nano-étape réelle, vérification finie du contrat
+de projection ; pas de preuve universelle ni de finalisation de mission réelle.
+
+### 15:09 — réconciliation des zombies et validation finale
+
+Une deuxième passe complète a échoué sur le sweep après mort du superviseur : 1 failed,
+1 599 passed en 115,87 s. La sonde native explique la course : un zombie macOS reste visible
+à kill(pid, 0), mais proc_pidinfo ne rend plus son identité. Le sweep ignorait alors ce leader.
+Le constat d'absence de membres vivants permet maintenant de clore sa custody sans signal ;
+une empreinte différente ou inconnue avec un groupe vivant reste refusée. Tests natifs rouge
+avant, verts après ; 64 tests lifecycle/mission/contrat/frontière passent en 55,26 s.
+
+
+### 15:09 — livraison finale de la projection exacte
+
+Suite finale : **1 602 passed, 3 skipped, 7 warnings en 114,64 s**, Python **3.12.9 / pyenv pithos**,
+sans bytecode ni cache pytest. Contrôle des onze STATE et revue du diff verts. Les skips
+restent les variantes réelles des scénarios réservés aux doubles bridge (ligne 79), campaign
+(ligne 170) et refinery (ligne 82). Les avertissements restants sont Starlette/httpx et six
+forks après démarrage de threads. Aucun test supprimé ou marqué skip pour rendre la suite verte.
+
+Les contre-preuves précédentes sont conservées : critère absent, avertissement Pydantic,
+échec intermittent de reprise et reproduction native du zombie. Leurs corrections sont vérifiées.
+Le trial-25ugxn94 prouve la nano-étape réelle sous unit_projection ; sa correction reste non
+commitée. Les reprises idempotent gardent leur critère et leur reçu historiques.
+
+Mesures finales : kernel 311 code / 492 physiques ; verifier 749 / 974 ; lifecycle 494 / 679.
+Total des onze modules : 5 680 lignes de code / 8 514 physiques. Aucune dépendance ajoutée.
+**Niveau de preuve atteint** : 5 pour les contrats partagés ; 6 pour le trial Ollama décrit
+ci-dessus et les observations natives de processus, sans prétendre à une preuve universelle.
