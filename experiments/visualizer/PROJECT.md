@@ -1,6 +1,6 @@
 # Noyau audio — banc d'essai Pithos Reloaded
 
-Mise à jour : **13:09**.
+Mise à jour : **15:09**.
 
 ## But
 
@@ -18,13 +18,23 @@ La cible existante `audio_visualizer.py::clamp_level(level)` reçoit un flottant
 L'objectif produit est une projection dans l'intervalle [0, 1]. Le seed contient délibérément
 une fonction fausse ; le modèle doit en proposer le remplacement, avec la même signature.
 
-Le premier critère exécutable est **idempotent / clamp_level / floats_finite** :
-normaliser deux fois donne le même résultat qu'une fois. Les entrées sont générées par Hypothesis,
-le critère est fixé par le banc et aucune valeur attendue n'est demandée au modèle.
+**Extension approuvée le 15:09** : les nouveaux essais utilisent
+**unit_projection / clamp_level / floats_finite**. Le harness impose les relations suivantes :
 
-**Portée de la preuve** : ce critère teste la stabilité de la projection. À lui seul, il ne démontre
-pas que les bornes choisies sont exactement 0 et 1. Un vert de ce banc n'est donc pas la validation
-complète du contrat produit, ni celle d'un visualiseur audio fonctionnel.
+- La sortie est numérique, finie, dans [0, 1] ; les booléens sont refusés.
+- Les valeurs déjà dans [0, 1] restent identiques, sans tolérance d'arrondi.
+- Sous 0, la sortie égale `f(0)` ; au-dessus de 1, elle égale `f(1)`.
+- La seconde application ne change pas la sortie.
+
+Les points fixes 0 et 1, leurs voisins flottants immédiats, 0,5, -1, 2 et les extrêmes finis
+sont des exemples imposés par le harness, complétés par Hypothesis seedé. Le modèle ne fournit
+ni bornes, ni tolérance, ni entrées, ni valeurs attendues. Ce contrat caractérise la projection
+exacte ; son exécution reste une vérification sur un ensemble fini, pas une preuve universelle.
+Il ne valide pas un visualiseur audio complet.
+
+Le premier banc utilisait seulement **idempotent**, ce qui laissait passer une projection [0, 2].
+Les anciens arbres et reçus gardent ce critère. Une reprise les affiche comme tels ; pour éprouver
+la projection exacte, créer un nouvel essai ou un nouveau `--run`, sans effacer les preuves.
 
 ## Protocole d'essai
 
@@ -60,7 +70,9 @@ avec les préconditions effectives. Le dépôt du harness et l'ancien projet ne 
 
 - [DONE] Première nano-étape avec reçu, rejet d'invariant et refus du reçu : restauration mesurée sur disque, bridge/Git simulés.
 - [DONE] Sonde structurée du modèle local : critère conforme, fenêtre 16 384 lue via ollama show puis fournie avec provenance asserted.
-- [TODO] Essai avec modèle local ; mesurer rejet du schéma, durée, verdict et reçu.
+- [DONE] Essai local initial conservé : candidat conforme, refus tautology, restauration exacte, aucun reçu.
+- [DONE] Étendre le contrat à la projection exacte [0, 1] ; rejouer le candidat archivé sous ce nouveau critère.
+- [DONE] Nouvel essai Ollama trial-25ugxn94 : unit_projection, reçu durable, effet confirmé et fichier conservé (15:09).
 - [TODO] Projection par bandes bass/mid/treble, après définition d'un domaine de tableaux et de relations adaptées.
 - [TODO] Lissage temporel, après définition de son critère multi-entrée compatible avec le catalogue.
 - [TODO] Magnitudes depuis un signal synthétique, sans capture audio.

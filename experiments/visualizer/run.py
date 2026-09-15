@@ -33,12 +33,14 @@ SYSTEM = ROOT / "src" / "bridge" / "prompt" / "candidate.md"
 INSTRUCTION = "Project the finite audio level to [0, 1]. Preserve the signature; propose only clamp_level."
 REFERENCE = (
     "def clamp_level(level):\n"
-    "    if level < 0.0:\n"
-    "        return 0.0\n"
-    "    if level > 1.0:\n"
-    "        return 1.0\n"
-    "    return level\n"
+    "    return max(0.0, min(1.0, level))\n"
 )
+
+
+def projection_criterion():
+    """Fixe le contrat des nouveaux essais, indépendamment de la réponse du modèle."""
+
+    return Criterion(relation="unit_projection", symbols=["clamp_level"], domain="floats_finite")
 
 
 def exercise(repo, output, deps, seconds):
@@ -47,7 +49,7 @@ def exercise(repo, output, deps, seconds):
     # données du banc, jamais décidées par le modèle
     target = repo / "audio_visualizer.py"
     before = target.read_bytes()
-    criterion = Criterion(relation="idempotent", symbols=["clamp_level"], domain="floats_finite")
+    criterion = projection_criterion()
     node = Node(id="clamp-level", parent_id=None, depth=0, target=target, criterion=criterion,
                 status="pending", blocked_cause=None)
     tree = Tree(mission_id=output.name, nodes=(node,), cap_children=1)
@@ -70,7 +72,8 @@ def exercise(repo, output, deps, seconds):
         "receipt_written": bool(receipts),
         "elapsed_seconds": budget.elapsed,
         "capability": asdict(deps.capability),
-        "proof_scope": "idempotence; does not establish the exact product bounds",
+        "criterion": criterion.model_dump(mode="json"),
+        "proof_scope": "exact projection onto [0, 1] on harness-generated finite floats; no universal proof",
     }
 
     return report
@@ -88,7 +91,7 @@ def selftest(output, case):
     before = SEED.read_bytes()
     target.write_bytes(before)
     model = load_double("bridge")
-    source = "def clamp_level(level):\n    return level + 0.2\n" if case == "rejected" else REFERENCE
+    source = "def clamp_level(level):\n    return max(0.0, min(2.0, level))\n" if case == "rejected" else REFERENCE
     model.script(model.conformant({"function_name": "clamp_level", "new_source": source}))
     git = load_double("broker")
     git.complete = True
