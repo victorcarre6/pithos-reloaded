@@ -50,23 +50,19 @@ def test_two_real_forks_have_one_winner(tmp_path, trace):
             reader.close()
 
 
-def test_expiry_is_recorded_before_success_and_old_release_is_harmless(tmp_path, trace):
+def test_expiry_cannot_reclaim_a_living_owner(tmp_path, trace):
     now = [10.0]
     first = RunLock(tmp_path / "run", max_seconds=5, trace=trace, clock=lambda: now[0])
     assert first.acquire() == LockState.held
     original = (first.path / "owner.json").read_bytes()
     now[0] = 16.0
     second = RunLock(first.path, max_seconds=5, trace=trace, clock=lambda: now[0])
-    assert second.acquire() == LockState.stale_reclaimed
-    current = (first.path / "owner.json").read_bytes()
-    first.release()
-    first.release()
-    assert (second.path / "owner.json").read_bytes() == current
-    assert trace.events[-1].payload["operation"] == "lock_reclaimed"
-    retired = list(tmp_path.glob("run.retired-*"))
-    assert len(retired) == 1
-    assert (retired[0] / "owner.json").read_bytes() == original
+    assert second.acquire() == LockState.unavailable
+    assert (first.path / "owner.json").read_bytes() == original
+    assert trace.events == []
     second.release()
+    assert first.path.exists()
+    first.release()
 
 
 def test_recycled_pid_does_not_authorize_old_release(tmp_path, trace):
@@ -101,20 +97,20 @@ def test_unknown_start_identity_never_reclaims(tmp_path, trace):
 
 
 def test_failed_reclaim_journal_never_grants_lock(tmp_path, trace):
-    first = RunLock(tmp_path / "run", max_seconds=1, trace=trace, clock=lambda: 1.0)
+    first = RunLock(tmp_path / "run", max_seconds=1, trace=trace, identity=lambda pid: "old")
     assert first.acquire() == LockState.held
     trace.disk_full = True
-    second = RunLock(first.path, max_seconds=1, trace=trace, clock=lambda: 3.0)
+    second = RunLock(first.path, max_seconds=1, trace=trace, identity=lambda pid: "new")
     assert second.acquire() == LockState.unavailable
 
 
 def test_delayed_retirement_cannot_rename_new_owner(tmp_path, trace, monkeypatch):
     from pathlib import Path
 
-    first = RunLock(tmp_path / "run", max_seconds=1, trace=trace, clock=lambda: 1.0)
+    first = RunLock(tmp_path / "run", max_seconds=1, trace=trace, identity=lambda pid: "old")
     assert first.acquire() == LockState.held
-    second = RunLock(first.path, max_seconds=1, trace=trace, clock=lambda: 3.0)
-    third = RunLock(first.path, max_seconds=1, trace=trace, clock=lambda: 3.0)
+    second = RunLock(first.path, max_seconds=1, trace=trace, identity=lambda pid: "new")
+    third = RunLock(first.path, max_seconds=1, trace=trace, identity=lambda pid: "new")
     rename = Path.rename
     intervened = []
 

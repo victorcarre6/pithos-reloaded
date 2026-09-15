@@ -101,8 +101,7 @@ class RunLock:
                     observed = self.identity(owner["pid"])
                     if not observed:
                         return LockState.unavailable
-                    expired = self.clock() - owner["created"] >= self.max_seconds
-                    stale = observed != owner["start_time"] or expired
+                    stale = observed != owner["start_time"]
                 if not stale:
                     return LockState.unavailable
 
