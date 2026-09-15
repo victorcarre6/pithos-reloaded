@@ -179,3 +179,21 @@ union Fact rétrocompatible, trois constructeurs du double et 28 cas de validati
 **Tests verts** : 222 tests kernel/contrat/frontière ; suite complète **1314 passed, 3 skipped**
 (Python 3.12.9 / pithos, hors sandbox, 35,05 s).
 **Exécuté** : —
+
+## Proposé le 15:09 — nommer la projection unité
+
+**Intention** : publier la relation unaire fermée unit_projection.
+
+```sh
+ga src/kernel/contracts.py \
+   src/kernel/test_contracts.py \
+   src/kernel/MODULE.md \
+   src/kernel/STATE.md \
+   src/kernel/git.md
+gcmsg "kernel: ajoute la relation fermée unit_projection"
+```
+
+**Contient** : dixième relation, cardinalité unaire, refus des bornes et tolérances émises par le modèle.
+Le rendu est dans le lot verifier suivant ; intégrer les lots de projection ensemble.
+**Tests verts** : suite complète **1 602 passed, 3 skipped, 7 warnings en 114,64 s**, Python 3.12.9 / pithos ; STATE et diff-check verts.
+**Exécuté** : —

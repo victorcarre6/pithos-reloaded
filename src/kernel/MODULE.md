@@ -326,3 +326,10 @@ C'est ce double que **tous** les autres modules utilisent. Soigne-le : une erreu
   permettent la relecture des reçus historiques FileFact sans ajouter de discriminant obligatoire.
 - Les trois constructeurs correspondants sont publiés par le double ; le contrôle CodeView reste
   dans tests/contracts. Pas de HostFact anticipé ni de liaison outil/schéma inventée.
+
+## Décisions locales — 15:09 : projection exacte autorisée
+
+Le catalogue compte désormais dix relations : `unit_projection` est unaire. Elle n'ajoute aucun
+champ à Criterion : bornes et tolérance ne sont pas paramétrables par le modèle. Kernel vérifie
+la cardinalité ; verifier réserve son exécution à floats_finite et définit les relations exactes
+de projection sur [0, 1]. `idempotent` garde sa sémantique et ses identités de reçus historiques.

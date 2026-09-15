@@ -35,6 +35,7 @@ class NodeStatus(StrEnum):
 class Relation(StrEnum):
     round_trip = "round_trip"
     idempotent = "idempotent"
+    unit_projection = "unit_projection"
     commutes_with = "commutes_with"
     preserves = "preserves"
     invariant_under = "invariant_under"
@@ -70,7 +71,10 @@ class Criterion(Contract):
     @model_validator(mode="after")
     def symbol_count(self):
         # cardinalité fermée de chaque relation du catalogue
-        unary = {Relation.idempotent, Relation.monotone, Relation.total, Relation.schema_conform}
+        unary = {
+            Relation.idempotent, Relation.unit_projection, Relation.monotone,
+            Relation.total, Relation.schema_conform,
+        }
         expected = 1 if self.relation in unary else 2
         if len(self.symbols) != expected:
             raise ValueError("symbol count does not match the relation")

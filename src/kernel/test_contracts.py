@@ -77,11 +77,20 @@ def test_criterion_rejects_literals_and_unknown_choices(field, value):
 
 @pytest.mark.parametrize("relation", list(Relation))
 def test_all_relations_round_trip(relation):
-    unary = {"idempotent", "monotone", "total", "schema_conform"}
+    unary = {"idempotent", "unit_projection", "monotone", "total", "schema_conform"}
     symbols = ["f"] if relation in unary else ["f", "g"]
     criterion = Criterion(relation=relation, symbols=symbols, domain="json_values")
     assert Criterion.model_validate_json(criterion.model_dump_json()) == criterion
-    assert len(Relation) == 9
+    assert len(Relation) == 10
+
+
+def test_unit_projection_is_unary_and_does_not_accept_model_defined_bounds():
+    data = {"relation": "unit_projection", "symbols": ["f"], "domain": "floats_finite"}
+    criterion = Criterion(**data)
+    assert Criterion.model_validate_json(criterion.model_dump_json()) == criterion
+    for extra in ({"lower": 0.0}, {"upper": 2.0}, {"tolerance": 0.1}, {"symbols": ["f", "g"]}):
+        with pytest.raises(ValidationError):
+            Criterion(**{**data, **extra})
 
 
 @pytest.fixture

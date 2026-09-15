@@ -1,15 +1,17 @@
 # STATE — `kernel`
 
 **Statut** : en cours
-**Mise à jour** : 12:09
-**Lignes** : 307 code / 380 cible · 488 physiques
-**Empreinte** : 4d95e46247a6c36f72b26df42b0a24bb1f4ed6182501645a631d421a895a2702
+**Mise à jour** : 15:09
+**Lignes** : 311 code / 380 cible · 492 physiques
+**Empreinte** : 05884a1dc300bb788cecee51571247405ec8099dfca979b3f3e492ccea33e8f1
 
 ## Prochaine action
 
-Les faits SourceFact et RepoFact sont publiés et validés avec leurs producteurs. Passer à engine après arbitrage de la source candidate ; pour schema_conform, définir d’abord le contrat de liaison outil → modèle Pydantic déclaré (ne pas inférer les annotations).
+unit_projection est livré. Pour schema_conform, définir le contrat de liaison outil → modèle de sortie déclaré avec son producteur ; conserver les critères existants et ne pas inférer les annotations.
 
 ## Avancement
+
+- [x] Relation unaire unit_projection ajoutée au catalogue fermé, sans paramètres de borne.
 
 _Recopie ici la liste « Fini quand » de `MODULE.md` et coche au fur et à mesure._
 
@@ -291,3 +293,69 @@ producteurs workspace puis broker. Propositions ajoutées sans aucune commande G
 Suite complète finale dans **pithos / Python 3.12.9** : **1 367 passed, 3 skipped, 7 warnings en 37,10 s**.
 Les contrôles d'en-têtes STATE et `git diff --check` passent. Aucune dépendance installée, aucun Git d'écriture, aucun bytecode suivi modifié. Les propositions sont dans les git.md ; les contrats transverses ont leur lot dans tests/git.md.
 **Niveau de preuve : 5**, avec subprocess et fichiers de test effectivement exercés. Le marcheur complet et le premier vert avec modèle local restent à démontrer. La source candidate attend l'arbitrage utilisateur.
+
+### 15:09 — projection exacte autorisée, test initial rouge
+
+L’utilisateur demande maintenant la projection exacte sur [0, 1]. Le chantier ajoute une relation
+fermée unit_projection, sans borne ni tolérance fournie par le modèle. Les nouvelles missions
+l’utilisent ; les reprises conservent leur critère et les anciens reçus ne sont pas requalifiés.
+Le premier test kernel échoue comme attendu : relation absente du catalogue (1 failed,
+81 deselected, 0,15 s). Implémentation et vérifications en cours.
+**Niveau de preuve atteint** : 1 à ce point de reprise.
+
+### 15:09 — projection exacte vérifiée, essai local en cours
+
+Validation ciblée : 108 tests kernel/projection en 3,88 s ; 400 tests kernel/verifier,
+contrats/frontières et trial en 31,12 s ; 8 tests trial/mission en 46,27 s, dont reprise
+idempotent historique, reçu unit_projection, rollback [0, 2] et custody réelle.
+Suite complète : 1 600 passed, 3 skipped, 8 warnings en 114,44 s, Python 3.12.9 / pithos.
+Un avertissement ajouté par le test (domain copié comme str plutôt qu'enum) a été corrigé ;
+la vérification finale reste à consigner. Les trois skips sont les scénarios réservés aux
+doubles bridge/campaign/refinery ; les sept avertissements antérieurs restent distincts.
+
+Rejeu archivé : projection-replay-6k9y5dc3, avant rouge/après vert/mutant tué, 44 fichiers
+historiques inchangés par SHA-256, aucun reçu et aucun appel Ollama dans ce rejeu.
+Le dépôt opérateur est propre et identique au seed. La première lecture Ollama a été refusée
+par la sandbox (operation not permitted) ; la lecture autorisée confirme num_ctx 16384.
+Une nouvelle tentative trial --seconds 180 est lancée sous unit_projection ; ne pas en
+déduire le verdict avant lecture de son result.json. Aucun Git d'écriture exécuté par l'agent.
+**Niveau de preuve atteint** : 5 pour les contrats ; runtime de mission réel avec modèle simulé.
+
+### 15:09 — premier vert réel sous unit_projection
+
+Le nouveau trial-25ugxn94 utilise tous les composants réels, Ollama inclus : **passed** en
+44,89811025001109 s pour la tentative, deux appels et 3 350 tokens rapportés (1 227 + 2 123).
+Configuration num_ctx 16384 relue par ollama show ; provenance de la capacité toujours asserted.
+
+Relecture indépendante des preuves : exactement trois résultats de gates failed/failed/passed,
+un seul reçu durable lié à unit_projection avec effect confirmed, arbre passed, fichier cible
+modifié et SHA-256 correspondant au rapport. Avant :
+40818e8d40d125b69d8e75dff8fcaab1040dace8d87e7e06b9d8362fba577bf5 ; après :
+2699717e89232fcd6ae0eee5395eb8122e67d2ffe9b3f39c9439f83c065f1b29.
+La correction produite est max(0.0, min(1.0, level)). Les 44 fichiers du trial-44kcg6ig
+restent inchangés, empreintes de nouveau comparées après l'essai.
+
+Le fichier vert est conservé dans experiments/visualizer/workspace/audio_visualizer.py ;
+aucun commit, push ni autre Git d'écriture exécuté par l'agent. Ce trial ne passe pas par
+Prefect/GreenFinalizer : tree.finalized reste vide. Pour une future mission composée, préparer
+un nouveau dépôt seed et un nouveau --run ; ne pas réinitialiser le workspace vert.
+**Niveau de preuve atteint** : 6 pour cette nano-étape réelle, vérification finie du contrat
+de projection ; pas de preuve universelle ni de finalisation de mission réelle.
+
+### 15:09 — livraison finale de la projection exacte
+
+Suite finale : **1 602 passed, 3 skipped, 7 warnings en 114,64 s**, Python **3.12.9 / pyenv pithos**,
+sans bytecode ni cache pytest. Contrôle des onze STATE et revue du diff verts. Les skips
+restent les variantes réelles des scénarios réservés aux doubles bridge (ligne 79), campaign
+(ligne 170) et refinery (ligne 82). Les avertissements restants sont Starlette/httpx et six
+forks après démarrage de threads. Aucun test supprimé ou marqué skip pour rendre la suite verte.
+
+Les contre-preuves précédentes sont conservées : critère absent, avertissement Pydantic,
+échec intermittent de reprise et reproduction native du zombie. Leurs corrections sont vérifiées.
+Le trial-25ugxn94 prouve la nano-étape réelle sous unit_projection ; sa correction reste non
+commitée. Les reprises idempotent gardent leur critère et leur reçu historiques.
+
+Mesures finales : kernel 311 code / 492 physiques ; verifier 749 / 974 ; lifecycle 494 / 679.
+Total des onze modules : 5 680 lignes de code / 8 514 physiques. Aucune dépendance ajoutée.
+**Niveau de preuve atteint** : 5 pour les contrats partagés ; 6 pour le trial Ollama décrit
+ci-dessus et les observations natives de processus, sans prétendre à une preuve universelle.
