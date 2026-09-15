@@ -1,7 +1,7 @@
 # STATE — `engine`
 
-**Statut** : bloqué
-**Mise à jour** : 14:09
+**Statut** : en cours
+**Mise à jour** : 15:09
 **Lignes** : 1125 code / 1050 cible · 1500 physiques
 **Empreinte** : f9dfb89e5b2afd7700c240e6d936c9bf6b3a89069617fbeacd75862ddd3d7a9e
 **Plafond justifié** : 1125 code
@@ -9,7 +9,7 @@
 
 ## Prochaine action
 
-Faire publier l'adaptateur GreenFinalizer côté broker/composition : reconcile(key, receipt, timeout), finalize(key, receipt, timeout), interrogation avant rejeu et observation complète du dépôt. La composition doit détenir le verrou lifecycle et fournir le serveur Prefect local sans analytics, avec watchdog de processus ; voir Blocages. Après ces ports, vérifier une reprise/finalisation via flow.mission sous verrou réel. Faire déplacer les contrats locaux et la garde de flow par la passe transverse. L'enveloppe est livrée et sa proposition Git est prête ; aucun travail indépendant restant n'autorise à élargir le périmètre engine.
+Ports Walker, MissionRunner et GreenFinalizer consolidés dans les tests partagés. Prochain chantier du harness : lifecycle/disk.ensure_space selon son STATE ; aucun port manquant ne bloque plus la composition walk/flow/finalisation.
 
 ## Avancement
 
@@ -60,13 +60,14 @@ rend son test de frontière rouge, et une signature de double divergente rend so
 
 | Quoi | Pourquoi | Ce qui débloquerait | Résolu le |
 |---|---|---|---|
+| Custody des invariants détachés | verifier/runner.py crée une nouvelle session ; le groupe survit au watchdog du worker (sonde rouge du 14:09). | Accord pour étendre le périmètre à verifier, port de lancement sous custody, vraie gate coupée puis tous ses groupes confirmés arrêtés. | 14:09 — extension autorisée, gate réelle arrêtée puis reprise sans reçu ; sweep du propriétaire mort vérifié. Suite complète verte : 1 556 passed, 3 skipped. |
 | Source candidate du modèle | `AGENTS.md` contrainte dure n°1 interdit tout littéral du modèle à l'exécution ; `workspace/MODULE.md` § 1 prévoit `{function_name, new_source}` généré. Les décisions 2 et 21 de `docs/EXPLANATIONS.md` ne lèvent pas explicitement cette contradiction. | Arbitrer la contrainte ou publier un catalogue fermé de transformations ; aucune route de génération de code ne sera inventée ici. Question posée le 10:09. | **Résolu le 12:09** — l'utilisateur autorise le code candidat sous critères et entrées contrôlés par le harness. |
 | Attestation de l'effet réel | `SourceVerifier.check_sources` et `emit_receipt` attestent seulement les sources, avec `effect=unproven`. `kernel.Fact` ne porte pas les snapshots source ni `RepoFact` attendus par verifier. | Publier ces contrats dans kernel et leurs producteurs/doubles, puis la gate complète de verifier. | **Résolu le 12:09** — faits canoniques, producteurs et `Verifier.run` ; 1 349 tests verts avant la dernière garde de budget. |
 | Placement des tests transverses | `AGENTS.md` § 11 exige `tests/contracts/` et `tests/boundaries/`, mais § 6 interdit leur écriture par engine. | Tests locaux dans `src/engine/` en attendant une autorisation de placement ou un agent chargé de ces répertoires. | **Résolu le 10:09** — déplacés par la passe transverse ; suite complète verte. |
-| Finalisation réelle de walk | `broker.commit` ne reçoit ni identité logique de vérification, ni deadline ; `broker.intent.resume` fournit les primitives mais aucun adaptateur ne compose interrogation, commit borné et observation. Engine ne peut importer broker ni modifier son code. | Publier côté composition/broker un objet conforme à GreenFinalizer : reconcile(key, receipt, timeout) interroge l'effet par identité et rend RepoFact ou None ; finalize(key, receipt, timeout) publie les seuls chemins attestés, persiste l'effet puis rend un RepoFact complet propre. Fournir le verrou de mission lifecycle autour de walk. | — ; niveau 5 sur MemoryFinalizer uniquement. |
+| Finalisation réelle de walk | `broker.commit` ne reçoit ni identité logique de vérification, ni deadline ; `broker.intent.resume` fournit les primitives mais aucun adaptateur ne compose interrogation, commit borné et observation. Engine ne peut importer broker ni modifier son code. | Publier côté composition/broker un objet conforme à GreenFinalizer : reconcile(key, receipt, timeout) interroge l'effet par identité et rend RepoFact ou None ; finalize(key, receipt, timeout) publie les seuls chemins attestés, persiste l'effet puis rend un RepoFact complet propre. Fournir le verrou de mission lifecycle autour de walk. | **Résolu le 14:09** — GreenFinalizer broker et worker lifecycle réels ; reprise après commit sans acquittement, modèle scénarisé. |
 | Placement du nouveau contrat Walker | Le contrat NanoEngine partagé demeure intact ; le nouveau corpus Walker/GreenFinalizer est dans src/engine/test_walk.py, seul périmètre autorisé. | Passe transverse : déplacer ce corpus dans tests/contracts/test_engine_double.py et marquer walk livré dans docs/ARCHITECTURE.md avec la signature de MODULE.md. | — |
 | Placement du contrat ContextArchive | Le port et le double sont testés dans src/engine/test_dump.py, avec mutation des deux signatures ; tests/contracts reste hors périmètre engine. | Passe transverse : déplacer ce contrôle dans tests/contracts/test_engine_double.py, sans changer le métier. | — |
-| Composition du runtime Prefect | flow.py nécessite un serveur local déjà lancé, sans analytics serveur, un thread principal avec SIGALRM libre et le verrou exclusif de mission. Le timeout Prefect n'est pas un SIGKILL et ne borne pas son propre démarrage/arrêt. | Composition/lifecycle : fournir cette entrée locale avec arrêt du propriétaire précédent et watchdog de processus ; le flow ne crée pas d'infrastructure implicite. | — ; serveur temporaire et alarme réellement testés, aucune mission Git/Ollama. |
+| Composition du runtime Prefect | flow.py nécessite un serveur local déjà lancé, sans analytics serveur, un thread principal avec SIGALRM libre et le verrou exclusif de mission. Le timeout Prefect n'est pas un SIGKILL et ne borne pas son propre démarrage/arrêt. | Composition/lifecycle : fournir cette entrée locale avec arrêt du propriétaire précédent et watchdog de processus ; le flow ne crée pas d'infrastructure implicite. | **Résolu le 14:09** — mission.py sous verrou réel et watchdog de groupe ; Prefect temporaire sans analytics dans le test intégré, serveur explicite prérequis de la CLI. Modèle seul simulé. |
 | Placement du contrat MissionRunner | Le nouveau contrat et sa dérive de signature sont testés dans src/engine/test_flow.py ; tests/contracts reste hors périmètre. La frontière locale de flow complète l'exemption Prefect du scanner partagé. | Passe transverse : déplacer le contrat vers tests/contracts/test_engine_double.py avec Walker et ContextArchive ; reprendre la garde locale de flow dans tests/boundaries/test_engine.py. | — |
 
 ## Décisions locales
@@ -452,3 +453,132 @@ Les anciens lots walk et CONTEXT.md sont observés commités ; aucune répétiti
 Statut **bloqué** pour l'intégration restante, pas fini : finaliseur broker, composition lifecycle et
 placement transverse des nouveaux contrats manquent encore. Aucun choix métier utilisateur nouveau
 n'est nécessaire pour l'enveloppe livrée ; le prochain agent doit prendre le chantier broker explicité.
+
+### 14:09 — raccordement depuis la composition
+
+Aucune production engine modifiée. `experiments/visualizer/mission.py` charge l'arbre durable
+et fournit WalkDeps avec GreenFinalizer broker, sous MissionProcess lifecycle. L'ancre Budget
+précède le spawn et la sonde ; une reprise verte/running ne sonde plus le modèle.
+**46 tests ciblés verts en 29,70 s**, dont composition réelle : commit unique, perte d'acquittement,
+refus avec restauration, coupure OS puis restauration à la reprise, superviseur mort puis sweep.
+Le modèle reste scénarisé. La garde n'est pas affaiblie pour rendre trial-44kcg6ig vert.
+**Niveau de preuve : 5 pour la mission complète** ; les blocages de placement restent ouverts.
+
+### 14:09 — livraison intégrée vérifiée
+
+Suite complète finale : **1 548 passed, 3 skipped, 7 warnings en 87,81 s**, Python **3.12.9 / pithos**,
+hors sandbox. Les trois skips existants restent bridge:77, campaign:170, refinery:82 (scénarios
+propres aux doubles) ; warnings Starlette/httpx et les six anciens forks après threads.
+Contrôle des onze STATE et `git diff --check` verts. Aucun paquet installé, aucun Git d'écriture
+sur le harness ou le dépôt de campagne, aucun service opérateur sollicité, dashboard intact.
+Les effets Git réels sont limités aux dépôts temporaires des tests. Le test d'intégration garde
+le modèle simulé : le premier vert Ollama reste à démontrer, trial-44kcg6ig demeure négatif.
+**Niveau de preuve : 5 pour la mission complète**, **6 limité aux composants locaux** effectivement
+exercés. La commande et la reprise sur même --run sont décrites dans experiments/visualizer/README.md.
+
+### 14:09 — contre-preuve finale : groupe d'invariant détaché
+
+La revue de src/verifier/runner.py:113 constate start_new_session=True. La sonde jetable
+/private/tmp/test_pithos_detached.py reproduit ce lancement sous MissionProcess : **1 failed en
+2,22 s**, le groupe d'invariant survit à la coupure du worker. La sonde nettoie ensuite explicitement
+son groupe ; aucun processus de ce diagnostic n'est laissé en marche.
+
+Cette contre-preuve limite la suite verte précédente : le scénario cut suspendait verifier.run
+avant le spawn réel et ne couvrait pas ses groupes séparés. Le groupe du worker et ses descendants
+restant dans ce groupe sont bien récoltés ; l'arrêt de tous les groupes du verifier n'est PAS prouvé.
+La composition n'est donc pas prête pour un essai opérateur. GreenFinalizer reste vérifié indépendamment.
+
+Correction requise : admission durable et récolte des groupes séparés d'invariants, sans modifier
+les critères, les entrées, les gates ou l'autorité du reçu. Le port de lancement correspondant manque
+à verifier. L'extension du périmètre à src/verifier a été demandée à l'utilisateur conformément à
+AGENTS.md § 6 ; aucune production verifier n'a été modifiée avant sa réponse.
+**Niveau de preuve : 4 pour ce défaut reproduit** ; la preuve positive d'arrêt global est retirée.
+
+
+### 14:09 — admission opérateur suspendue
+
+La CLI mission ferme désormais l'admission avant création de preuves/worker tant que les groupes
+verifier ne sont pas possédés. Les scénarios contrôlés d'intégration restent accessibles par injection
+du worker de test ; ils ne sont pas une autorisation d'essai réel. Plan de correction après accord :
+port d'exécution des commandes de gate dans verifier, fourni par lifecycle depuis la composition ;
+aucun import lifecycle dans verifier, aucune modification des critères ni des reçus. Enregistrement
+avant admission et sortie confirmée de chaque groupe, y compris après disparition du worker.
+
+### 14:09 — état sûr en attente d'extension de périmètre
+
+Après suspension de l'entrée opérateur : suite complète **1 549 passed, 3 skipped, 7 warnings en
+89,05 s**, pithos/Python 3.12.9. Le nouveau test constate le refus AVANT création de preuves ou
+worker. STATE et diff-check verts. Cette suite ne résout pas la sonde négative du groupe détaché
+(1 failed en 2,22 s) : la composition reste suspendue et l'accord src/verifier reste en attente.
+GreenFinalizer demeure livrable indépendamment ; les propositions de composition restent suspendues.
+
+### 14:09 — gates sous custody, contre-preuve traitée
+
+Le port contextuel verifier couvre baseline, candidat et mutants. Le superviseur lance un gardien
+par gate, écrit sa custody avant admission, puis récolte son groupe sous la plus petite deadline.
+Worker et gardiens ont le même propriétaire ; sa disparition permet leur sweep par le détenteur
+suivant du verrou. Le runner garde l'autorité sur le rapport, les codes 0/20 et le reçu.
+Aucun nouveau protocole réseau ni dépendance ; l'IPC réutilise le pipe du worker.
+
+Résultats intermédiaires conservés : **20 passed in 5.62s** (lifecycle/frontière), puis **2 failed,
+11 passed in 34.78s**. La gate réelle était arrêtée mais le worker recevait encore un retour à la
+deadline globale : il pouvait restaurer avant la coupure. Le superviseur ne répond plus après cette
+borne. L'autre rouge révélait une injection de signature sur une copie différente du double ; le
+contrôle reçoit désormais l'instance mutée. Relance : **1 failed, 23 passed in 42.68s** ; tous les
+scénarios intégrés passent, le seul rouge est un NameError dans le nouveau test d'admission (assertions
+placées dans le mauvais test, corrigées avant la reprise). Aucun résultat négatif n'est effacé.
+
+La CLI est réouverte après les preuves de vraie gate coupée et d'orphelin récupéré ; vérification de
+son entrée réelle en cours, puis suite complète. L'isolation reste celle des groupes gérés par le
+harness ; elle ne confine pas un programme hostile créant lui-même une session.
+**Niveau de preuve : 5 pour la mission complète** (modèle simulé), **6 pour les effets locaux** observés.
+
+### 14:09 — custody des gates livrée et mission réouverte
+
+L'autorisation est confirmée explicitement : « Oui, étendre à verifier ». Les critères, les entrées,
+les gates et l'autorité du reçu restent inchangés. Seul le lancement passe par le port sous custody.
+
+- Tests ciblés : **23 passed in 44.47s**. Chaque invariant produit correspond à un gardien admis
+  dans la custody commune. Journal refusé : aucun programme de gate lancé.
+- Deadline globale pendant la gate réelle : son programme et son descendant sont arrêtés ; le
+  candidat et running sont constatés, puis le walk suivant restaure les octets sans appel modèle.
+- Superviseur tué pendant une gate réelle : sweep du worker et du gardien avant admission suivante ;
+  aucune custody active, aucun descendant encore exécuté et verrou libéré.
+- CLI réelle sur le même --run vert : résultat passed/finalized=1, un seul reçu et un seul commit
+  de finalisation. Acquittement perdu et refus restent couverts sans double commit ni reçu indu.
+
+Suite complète, Python **3.12.9 / pithos**, sans bytecode ni cache pytest, hors sandbox : **1 556 passed, 3 skipped, 7 warnings en 100,50 s**.
+Les skips sont tests/contracts/test_bridge_double.py:77, test_campaign_double.py:170 et
+ test_refinery_double.py:82 : variantes réelles sans scénario à charger. Warnings existants :
+Starlette/httpx et six occurrences de fork après threads. Contrôle des onze STATE et diff-check verts.
+Aucun Git d'écriture sur le harness ou le dépôt opérateur ; les commits de test portent uniquement
+sur les dépôts jetables. Aucun nouveau trial Ollama : trial-44kcg6ig reste refusé sur tautology.
+Les suspensions de composition du 14:09 sont levées ; leurs contre-preuves restent archivées.
+
+**Niveau de preuve : 5 pour la mission complète**, modèle simulé ; **6 pour les effets locaux**
+Git/Prefect/verifier/workspace/journal/lifecycle réellement observés. Les groupes gérés par le harness
+ne sont pas une sandbox de code hostile. Le dashboard demeure déclaré terminé pour le moment.
+
+### 15:09 — sensibilité et contrats partagés livrés
+
+**164 passed in 22.32s** sur verifier, contrats engine et frontières injectées. Suite complète
+**1 568 passed, 3 skipped, 7 warnings en 103,09 s**, Python **3.12.9 / pithos**, sans bytecode ni cache pytest, hors sandbox.
+Les trois skips restent tests/contracts/test_bridge_double.py:77, test_campaign_double.py:170 et
+ test_refinery_double.py:82 (variantes réelles sans scénario). Warnings existants : Starlette/httpx
+et six forks après threads. Contrôle des onze STATE et diff-check verts.
+
+La reproduction exacte conserve les 44 fichiers du trial. Le corpus autonome teste la survie des
+mutants du clamp compact et l'acceptation de deux écritures à branches, dont une projection [0,2].
+Aucun opérateur de mutation ajouté, aucun critère ni gate modifié ; la preuve produit n'est pas
+élargie par cette livraison. `src/verifier/SENSITIVITY.md` expose les résultats et leurs limites.
+
+Les contrats partagés couvrent désormais NanoEngine, Walker, MissionRunner et GreenFinalizer.
+La dérive de chaque méthode et des paramètres keyword-only est détectée ; les doubles de walk et
+mission ne font aucune I/O et rendent un arbre indépendant. Le scanner n'exempte plus flow.py :
+seul Prefect y est autorisé en plus, avec une injection effective dans chaque fichier du module.
+Les tests locaux engine restent en place ; aucune implémentation métier voisine n'est modifiée.
+
+Une préférence optionnelle a été demandée sur la preuve de projection exacte. Sans changement de
+périmètre décidé, le banc reste celui de PROJECT.md. Aucun essai Ollama supplémentaire, commit,
+push ni suppression de données. Propositions ajoutées dans verifier/git.md et tests/git.md.
+**Niveau de preuve : 5** sur contrats ; 4 pour les invariants exécutés sur copies contrôlées.
