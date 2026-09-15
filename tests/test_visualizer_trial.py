@@ -32,16 +32,25 @@ def test_trial_cli_measures_green_and_rollbacks(case, cause):
     assert report["components"]["bridge"] == "scripted"
     assert report["components"]["git"] == "simulated"
     assert report["components"]["verifier"] == "real"
+    assert report["criterion"] == {
+        "relation": "unit_projection",
+        "symbols": ["clamp_level"],
+        "domain": "floats_finite",
+    }
 
     # le code et les reçus sont relus indépendamment du résumé du banc
     seed = (SCRIPT.parent / "seed" / "audio_visualizer.py").read_bytes()
     actual = (output / "workspace" / "audio_visualizer.py").read_bytes()
     events = [json.loads(line) for line in (output / "events.jsonl").read_text().splitlines()]
     receipts = [event for event in events if event["type"] == "validation"]
+    tree = json.loads((output / "tree.json").read_text())
+    assert tree["nodes"][0]["criterion"] == report["criterion"]
     gates = [json.loads(path.read_text()) for path in output.glob("invariant-*/result.json")]
     if case == "green":
         assert actual != seed
         assert len(receipts) == 1
+        assert receipts[0]["payload"]["verification"]["criterion"] == report["criterion"]
+        assert receipts[0]["payload"]["key"]["value"][-1] == "unit_projection"
         assert report["status"] == "passed"
     else:
         assert actual == seed

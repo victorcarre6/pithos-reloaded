@@ -8,6 +8,7 @@ signatures, et les deux fonctions pures que la frontière expose.
 """
 
 import inspect
+import json
 
 import pytest
 
@@ -41,13 +42,14 @@ def test_the_normalized_schema_is_the_same_on_both_sides(frontier):
     assert normalized["type"] == "object"
 
 
-def test_a_conformant_payload_revalidates_on_both_sides(frontier):
+@pytest.mark.parametrize("relation,domain", [("idempotent", "small_ints"), ("unit_projection", "floats_finite")])
+def test_a_conformant_payload_revalidates_on_both_sides(frontier, relation, domain):
     schema = bridge.normalize_schema(Criterion)
-    raw = '{"relation": "idempotent", "symbols": ["f"], "domain": "small_ints"}'
+    raw = json.dumps({"relation": relation, "symbols": ["f"], "domain": domain})
     verdict = frontier.revalidate(raw, schema, Criterion)
 
     assert isinstance(verdict, Ok)
-    assert verdict.value.relation == "idempotent"
+    assert verdict.value.relation == relation
 
 
 @pytest.mark.parametrize("raw,code", [
