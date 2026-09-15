@@ -14,6 +14,15 @@ SEED = 0
 BODIES = {
     Relation.round_trip: "assert g(f(deepcopy(x))) == x",
     Relation.idempotent: "first = f(deepcopy(x))\nassert f(deepcopy(first)) == first",
+    Relation.unit_projection: (
+        "first = f(deepcopy(x))\n"
+        "assert type(first) in (int, float)\n"
+        "assert 0.0 <= first <= 1.0\n"
+        "assert f(deepcopy(first)) == first\n"
+        "if 0.0 <= x <= 1.0:\n    assert first == x\n"
+        "elif x < 0.0:\n    assert first == f(0.0)\n"
+        "else:\n    assert first == f(1.0)"
+    ),
     Relation.commutes_with: "assert f(g(deepcopy(x))) == g(f(deepcopy(x)))",
     Relation.preserves: "assert g(f(deepcopy(x))) == g(deepcopy(x))",
     Relation.invariant_under: "assert f(g(deepcopy(x))) == f(deepcopy(x))",
@@ -93,6 +102,8 @@ def render(criterion: Criterion, target: Path) -> str:
         raise PithosError(Cause.unverifiable, "schema_binding_missing", "relation")
     if criterion.relation == Relation.monotone and criterion.domain not in {Domain.small_ints, Domain.floats_finite}:
         raise PithosError(Cause.unverifiable, "unordered_domain", "domain")
+    if criterion.relation == Relation.unit_projection and criterion.domain != Domain.floats_finite:
+        raise PithosError(Cause.unverifiable, "projection_requires_finite_floats", "domain")
     bindings = f"f = candidate[{criterion.symbols[0]!r}]\n"
     if len(criterion.symbols) == 2:
         bindings += f"g = candidate[{criterion.symbols[1]!r}]\n"
@@ -103,17 +114,25 @@ def render(criterion: Criterion, target: Path) -> str:
     body = indent(BODIES[criterion.relation], "    ")
     strategy = DOMAIN_CODE[criterion.domain]
 
+    # bornes, voisins binaires et extrêmes fixés par le harness
+    examples = ""
+    if criterion.relation == Relation.unit_projection:
+        inputs = (0.0, 1.0, 0.5, -1.0, 2.0, -5e-324, 5e-324,
+                  0.9999999999999999, 1.0000000000000002,
+                  -1.7976931348623157e308, 1.7976931348623157e308)
+        examples = "".join(f"@example(x={value!r})\n" for value in inputs)
+
     # le rapport terminal distingue un vrai passage d'un exit prématuré du candidat
     script = (
         "# invariant rendu par verifier ; conserver avec la copie candidate\n"
         "import json\nimport runpy\nimport traceback\nfrom copy import deepcopy\nfrom pathlib import Path\n"
-        "from hypothesis import given, settings, seed, strategies as st\n"
+        "from hypothesis import example, given, settings, seed, strategies as st\n"
         "from hypothesis.errors import HypothesisException\n"
         f"candidate = runpy.run_path({str(target)!r})\n{bindings}"
         f"strategy = {strategy}\n"
         f"@seed({SEED})\n"
         "@settings(max_examples=100, deadline=None, database=None, report_multiple_bugs=False)\n"
-        f"@given({arguments})\ndef invariant({parameters}):\n{body}\n"
+        f"@given({arguments})\n{examples}def invariant({parameters}):\n{body}\n"
         "status = 'passed'\ncode = 0\ntry:\n    invariant()\n"
         "except HypothesisException:\n    status = 'tool_error'\n    code = 70\n    traceback.print_exc()\n"
         "except Exception as error:\n    status = 'failed'\n    code = 20\n    traceback.print_exc()\n"
