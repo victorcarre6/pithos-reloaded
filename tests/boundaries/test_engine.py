@@ -34,7 +34,13 @@ def test_boundary_guard_detects_upward_imports(source):
 
 def test_production_boundary():
     forbidden = {"prefect", "subprocess", "socket", "httpx", "requests", "broker", "campaign", "lifecycle"}
-    assert_clean(ROOT, lambda source, path: imported_roots(source) & forbidden if path != Path("flow.py") else set())
+
+    def violations(source, path):
+        allowed = {"prefect"} if path == Path("flow.py") else set()
+
+        return imported_roots(source) & (forbidden - allowed)
+
+    assert_clean(ROOT, violations)
 
 
 def test_admission_runs_with_prefect_imports_and_subprocess_forbidden(kernel_double, journal_double, monkeypatch):

@@ -32,8 +32,6 @@ def test_each_production_file_can_make_its_actual_boundary_test_fail(module, tmp
     # exécute le vrai test, pas seulement sa fonction violations
     forbidden = {"engine": "socket", "refinery": "bridge"}.get(module, "engine")
     for path in production_files(tmp_path):
-        if module == "engine" and path == tmp_path / "flow.py":
-            continue  # l'adaptateur Prefect est explicitement hors de cette règle de pureté
         original = path.read_text()
         mutated = f"{original}\nimport {forbidden}\n"
         path.write_text(mutated)
