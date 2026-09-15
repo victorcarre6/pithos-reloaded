@@ -85,3 +85,66 @@ gcmsg "lifecycle: borne la probe de readiness dans un processus jetable"
 **Ne contient pas** : custody des processus de mission.
 **Tests verts** : `src/lifecycle/test_readiness.py` — 7 tests, Python 3.12.9 / pithos.
 **Exécuté** : —
+
+## Proposé le 14:09 — worker sous custody exclusive
+
+**Intention** : borner une mission dans un worker dont le groupe est arrêté avant libération du verrou.
+
+```sh
+ga src/lifecycle/execution.py \
+   src/lifecycle/custody.py \
+   src/lifecycle/lock.py \
+   src/lifecycle/test_execution.py \
+   src/lifecycle/test_lock.py \
+   tests/doubles/lifecycle.py \
+   src/lifecycle/MODULE.md \
+   src/lifecycle/STATE.md \
+   src/lifecycle/git.md
+gcmsg "lifecycle: supervise un worker sous custody exclusive"
+```
+
+**Contient** : worker spawn, admission durable, récolte, reprise fermée et correction du vol de verrou vivant.
+**Tests verts** : 50 tests lifecycle/frontière ; suite racine 1 545 passed, 3 skipped, 7 warnings.
+Le contrat/frontière partagé possède son lot dans tests/git.md.
+**Exécuté** : —
+
+### Complément le 14:09 — preuve finale de composition
+
+Les mêmes chemins proposés incluent les dernières gardes et les STATE à jour. Suite finale :
+**1 548 passed, 3 skipped, 7 warnings en 87,81 s** ; contrôle des onze STATE et diff-check verts.
+Les lots broker, lifecycle, experiment et leur support partagé tests forment l'état vérifié ensemble.
+Aucun commit ni push exécuté par l'agent.
+
+### Suspension le 14:09 — contre-preuve des groupes verifier
+
+Les propositions de composition ci-dessus attendent la correction décrite dans STATE : un invariant
+lancé dans sa propre session survit au watchdog du worker (sonde : 1 failed en 2,22 s). La suite
+racine verte ne couvrait pas ce cas. Le lot broker indépendant reste vérifié ; aucun commit exécuté.
+
+### Suspension levée le 14:09 — custody des gates vérifiée
+
+L'extension à verifier est autorisée et livrée. Le test coupe un invariant réel et son descendant ;
+le sweep après mort du superviseur et la reprise de la CLI réelle passent. Suite complète **1 556 passed, 3 skipped, 7 warnings en 100,50 s**,
+Python 3.12.9/pithos ; STATE et diff-check verts. Les mêmes chemins proposés incluent la correction
+et leurs preuves actualisées. Le lot verifier ajouté ce jour est un prérequis à la composition ;
+les lots lifecycle, experiment et tests partagés se relisent ensemble. Aucun commit exécuté.
+
+## Proposé le 15:09 — réconcilier un leader zombie
+
+**Intention** : clore sans signal la custody d'un groupe déjà sorti dont le leader est encore zombie.
+
+```sh
+ga src/lifecycle/custody.py \
+   src/lifecycle/test_custody.py \
+   src/lifecycle/MODULE.md \
+   src/lifecycle/STATE.md \
+   src/lifecycle/git.md
+gcmsg "lifecycle: réconcilie les groupes dont le leader est zombie"
+```
+
+**Contient** : constat de sortie du groupe malgré l'empreinte macOS devenue illisible ; refus
+préservé d'une identité inconnue avec des membres vivants. Régression native rouge avant/verte
+après, issue de l'échec de reprise dans la suite complète. Production réduite à 494 lignes.
+Ces fichiers portent aussi la composition précédente : appliquer ou regrouper ses propositions.
+**Tests verts** : suite complète **1 602 passed, 3 skipped, 7 warnings en 114,64 s**, Python 3.12.9 / pithos ; STATE et diff-check verts.
+**Exécuté** : —

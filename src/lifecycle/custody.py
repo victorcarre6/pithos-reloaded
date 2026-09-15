@@ -53,6 +53,18 @@ class IdentityMismatch(RuntimeError):
     """L'identité observée n'autorise aucun signal sur le groupe demandé."""
 
 
+def _group_running(pid, deadline):
+    result = subprocess.run(
+        ["/bin/ps", "-axo", "pgid=,stat="],
+        capture_output=True, text=True, check=True,
+        timeout=max(0.001, deadline - time.monotonic()),
+    )
+    rows = [line.split() for line in result.stdout.splitlines()]
+    members = [row for row in rows if row[0] == str(pid)]
+
+    return any(not row[1].startswith("Z") for row in members)
+
+
 def kill_group(pid: int, *, expected: ProcessIdentity) -> None:
     """Arrête un groupe attesté ; sans identité concordante, aucun signal n'est envoyé."""
 
@@ -61,9 +73,8 @@ def kill_group(pid: int, *, expected: ProcessIdentity) -> None:
         raise IdentityMismatch("pid differs from the admission identity")
     current = fingerprint(pid)
     if current != expected:
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
+        # un zombie n'a plus d'empreinte ; constater la sortie n'autorise aucun signal
+        if current is None and not _group_running(pid, time.monotonic() + 1):
             return
         raise IdentityMismatch("process identity is unknown or changed")
     if pid <= 1 or os.getpgid(pid) != pid or pid == os.getpgrp():
@@ -76,27 +87,19 @@ def kill_group(pid: int, *, expected: ProcessIdentity) -> None:
     # confirmation de tout le groupe ; les zombies sont déjà sortis
     deadline = time.monotonic() + 2
     while time.monotonic() < deadline:
-        result = subprocess.run(
-            ["/bin/ps", "-axo", "pgid=,stat="],
-            capture_output=True, text=True, check=True,
-            timeout=max(0.001, deadline - time.monotonic()),
-        )
-        rows = [line.split() for line in result.stdout.splitlines()]
-        members = [row for row in rows if row[0] == str(pid)]
-        running = [row for row in members if not row[1].startswith("Z")]
-        if not running:
+        if not _group_running(pid, deadline):
             return
         time.sleep(0.01)
     raise TimeoutError("process group exit not confirmed")
 
 
-def sweep_orphans(*, events_path: Path, trace=journal) -> list[int]:
-    """Moissonne les empreintes actives dont le propriétaire est prouvé disparu."""
+def active_processes(events_path: Path, trace=journal) -> dict[ProcessIdentity, OwnedProcess]:
+    """Projette la custody ; une trace partielle ne prouve jamais l'absence d'orphelins."""
 
     # projection par démarrage ; les événements bruts ne sont jamais réécrits
     active = {}
     if trace.torn_tail(events_path) is not None:
-        return []
+        raise ValueError("custody journal has a torn tail")
     for event in trace.read(events_path):
         payload = event.payload
         if payload.get("scope") != "lifecycle":
@@ -104,6 +107,8 @@ def sweep_orphans(*, events_path: Path, trace=journal) -> list[int]:
         operation = payload.get("operation")
         if operation not in {"process_started", "process_stopped"}:
             continue
+        if not event.durable:
+            raise ValueError("custody transition is not durable")
         try:
             identity = ProcessIdentity.model_validate(payload["process"])
             if operation == "process_stopped":
@@ -115,9 +120,20 @@ def sweep_orphans(*, events_path: Path, trace=journal) -> list[int]:
                 owner_start=payload["owner_start"],
                 process_scope=payload["process_scope"],
             )
-        except (KeyError, ValueError, TypeError):
-            continue
+        except (KeyError, ValueError, TypeError) as error:
+            raise ValueError("custody journal contains an invalid identity") from error
         active[identity] = entry
+
+    return active
+
+
+def sweep_orphans(*, events_path: Path, trace=journal) -> list[int]:
+    """Moissonne les empreintes actives dont le propriétaire est prouvé disparu."""
+
+    try:
+        active = active_processes(events_path, trace)
+    except ValueError:
+        return []
 
     # génération différente seule insuffisante : le propriétaire doit être mort
     stopped = []
@@ -133,7 +149,10 @@ def sweep_orphans(*, events_path: Path, trace=journal) -> list[int]:
         else:
             observed = process_start(entry.owner_pid)
             dead = observed is not None and observed != entry.owner_start
-        if not dead or fingerprint(identity.pid) != identity:
+        if not dead:
+            continue
+        observed = fingerprint(identity.pid)
+        if observed is not None and observed != identity:
             continue
 
         # logging : une panne empêche l'effet, un échec reste actif et reprenable

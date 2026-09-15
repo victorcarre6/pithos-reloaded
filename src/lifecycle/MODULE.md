@@ -24,7 +24,7 @@ ancre de démarrage.
 
 ```python
 class RunLock:
-    "Verrou-répertoire atomique + (pid, heure de démarrage) + péremption par durée maximale."
+    "Verrou-répertoire atomique + (pid, heure de démarrage) ; reprise après disparition confirmée."
     def acquire(self) -> LockState: ...      # held | unavailable | stale_reclaimed
     def release(self) -> None: ...
 
@@ -119,7 +119,7 @@ disque paramétrable, readiness pilotable. Il doit savoir jouer :
       différente.
 - [ ] Un verrou dont l'état est illisible rend **`unavailable`**, et l'appelant **bloque** — jamais
       « procéder ».
-- [ ] Un verrou dépassant la durée maximale est réclamé, et la réclamation est journalisée.
+- [ ] Un verrou expiré est réclamé après arrêt confirmé du propriétaire ; sa réclamation est journalisée.
 - [ ] `kill_group` arrête **tous** les descendants — test avec un petit-enfant de processus.
 - [ ] Deux ticks launchd rapprochés sont **coalescés**, pas empilés, et le second ne tue pas la première
       incarnation.
@@ -321,3 +321,46 @@ d'admission/génération à l'arrêt ferme le reste. C'est le risque exact des d
 | I4.7 | `web/src/features/mcp/server/security.ts:70` | **Validation de `Host` et `Origin`** — sans l'échappatoire `allowedHosts=["*"]`, et **l'absence d'`Origin` n'est pas une preuve de confiance**. | **Adapter** |
 | I4.7 | LF104 | **Frontière de licence définie par les chemins** : MIT pour le socle, exceptions `ee/`, `web/src/ee/`, `worker/src/ee/`. | **Adapter** |
 
+
+## Décisions locales — 14:09 — composition de mission
+
+La durée seule n'autorise plus à reprendre un verrou vivant : le superviseur impose l'arrêt
+puis confirme la sortie avant de libérer. `max_seconds` est conservé pour compatibilité du port ;
+il ne constitue pas une permission de voler la génération. Cette correction remplace la
+péremption automatique décrite historiquement, sans introduire heartbeat ni breaker.
+
+`MissionProcess(lock, events_path, trace).run(task, deadline)` reçoit une fonction importable de
+composition, jamais du code/une commande du modèle. `deadline` est un instant monotone absolu ;
+la composition lui donne la deadline métier + marge de dernier recours. Les délais de confirmation
+OS (identité, récolte et join) s'ajoutent ; ce n'est pas une borne temps réel contre un noyau bloqué.
+Le worker spawn ouvre une session distincte, attend l'acquittement de custody durable, puis
+exécute la tâche sur son thread principal. Il conserve son identité de leader après le résultat,
+jusqu'au SIGKILL du groupe. SIGINT laisse une possibilité de restauration sous la même borne.
+Une coupure dure conserve un effet inconnu à réconcilier au prochain walk.
+
+Le journal de custody et le verrou sont communs à toutes les missions du même dépôt. Le parent
+reste lié à ce journal ; le worker lie séparément sa trace métier. La reprise sweep les orphelins
+prouvés et refuse tout résidu inconnu. Un leader disparu avec descendants n'autorise aucun signal
+fondé sur le seul PID ; l'opérateur doit diagnostiquer cette perte d'identité.
+
+Double : MemoryLock et MemoryMissionProcess ; les contrats disque et HostFact restent absents.
+
+### 14:09 — custody des commandes du harness
+
+`execution.run_command(command, *, directory, environment, timeout) -> int` est appelé dans le
+worker. Il transmet la commande au superviseur par le pipe existant. Le superviseur réutilise
+l'admission du worker pour créer un gardien `task`, de même propriétaire que la session ; le
+programme hérite du groupe de ce gardien. Le gardien reste vivant jusqu'à la récolte confirmée.
+La deadline de commande ne peut dépasser celle de mission ; aucune réponse au worker après
+la borne globale. Verifier garde commandes, fichiers et verdicts ; la composition relie les ports.
+Un seul écrivain tient la custody commune au dépôt, même si le worker change son journal métier.
+Une entrée active après échec de récolte conserve le verrou et interdit toute admission suivante.
+Stack stdlib du superviseur : `multiprocessing`, `functools`, `math`, `time`, `typing`, `collections`.
+
+## Décisions locales — 15:09 : sortie d'un leader zombie
+
+Sous macOS, le démarrage d'un zombie peut déjà être illisible alors que kill(pid, 0) réussit.
+Le sweep ne confond plus cette fenêtre avec un groupe encore vivant : kill_group peut constater
+par ps l'absence de membres non zombies sans envoyer de signal. Si l'empreinte est différente,
+ou inconnue avec un groupe vivant, il refuse toujours. Les signaux restent réservés à une
+identité exactement appariée. Le test natif conserve le zombie jusqu'après la réconciliation.

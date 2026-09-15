@@ -68,6 +68,59 @@ def test_recycled_identity_never_signals(monkeypatch, double):
     assert signalled == []
 
 
+def test_sweep_reconciles_a_zombie_group_without_signalling(tmp_path, trace, monkeypatch):
+    import lifecycle.custody as custody
+
+    # garder le leader sorti non récolté pour reproduire la fenêtre observée après sigkill
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"], start_new_session=True)
+    try:
+        identity = fingerprint(child.pid)
+        assert identity is not None
+        child.kill()
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            state = subprocess.run(["/bin/ps", "-p", str(child.pid), "-o", "stat="],
+                                   capture_output=True, text=True, check=True)
+            if state.stdout.strip().startswith("Z"):
+                break
+            time.sleep(0.01)
+        assert state.stdout.strip().startswith("Z")
+        assert process_start(child.pid) is None
+        assert fingerprint(child.pid) != identity
+        os.kill(child.pid, 0)
+
+        # propriétaire d'une génération antérieure ; aucun signal sur un groupe déjà sorti
+        record(trace, "process_started", process=identity.model_dump(), owner_pid=os.getpid(),
+               owner_start="previous", process_scope="session")
+        signals = []
+        monkeypatch.setattr(custody.os, "killpg", lambda *args: signals.append(args))
+        assert sweep_orphans(events_path=tmp_path / "events", trace=trace) == [child.pid]
+        assert signals == []
+        assert trace.events[-1].payload["operation"] == "process_stopped"
+    finally:
+        child.kill()
+        child.wait(timeout=2)
+
+
+def test_unreadable_live_group_never_signals(monkeypatch):
+    import lifecycle.custody as custody
+
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"], start_new_session=True)
+    try:
+        identity = fingerprint(child.pid)
+        assert identity is not None
+        signals = []
+        monkeypatch.setattr(custody, "fingerprint", lambda pid: None)
+        monkeypatch.setattr(custody.os, "killpg", lambda *args: signals.append(args))
+        with pytest.raises(IdentityMismatch):
+            kill_group(child.pid, expected=identity)
+        assert signals == []
+        assert child.poll() is None
+    finally:
+        child.kill()
+        child.wait(timeout=2)
+
+
 def test_sweep_only_reaps_matching_process_of_proven_dead_owner(tmp_path, trace, monkeypatch):
     import lifecycle.custody as custody
     from lifecycle.process import ProcessIdentity
