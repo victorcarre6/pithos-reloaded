@@ -211,3 +211,64 @@ gcmsg "verifier: admet le critère avant une proposition candidate"
 **Contient** : Préflight sans I/O ; symbole absent, relation manquante et domaine incompatible refusés. Prérequis : lot gate de faits du 12:09.
 **Tests verts** : src/verifier/test_preflight.py, tests/contracts/test_verifier_double.py, tests/boundaries/test_verifier.py. Suite complète **1 402 passed, 3 skipped, 7 warnings en 40,64 s** dans Python 3.12.9/pithos.
 **Exécuté** : —
+
+## Proposé le 14:09 — port de lancement des gates
+
+**Intention** : déléguer le lancement des invariants à l'exécuteur de custody fourni par la composition.
+
+```sh
+ga src/verifier/runner.py \
+   src/verifier/__init__.py \
+   src/verifier/test_execution_port.py \
+   tests/doubles/verifier.py \
+   src/verifier/MODULE.md \
+   src/verifier/STATE.md \
+   src/verifier/git.md
+gcmsg "verifier: expose le lancement des gates sous custody"
+```
+
+**Contient** : CommandExecutor, execution_scope avec restauration, exécuteur local par défaut,
+artefacts exclusifs et double sans I/O. Le rapport du squelette reste nécessaire au verdict.
+**Tests verts** : port, runner, contrats et frontière inclus dans la suite complète **1 556 passed, 3 skipped, 7 warnings en 100,50 s** ;
+Python 3.12.9/pithos, contrôle des onze STATE et diff-check. Tests partagés proposés dans tests/git.md.
+**Exécuté** : —
+
+## Proposé le 15:09 — documenter la sensibilité du banc
+
+**Intention** : rendre reproductible la limite de preuve des mutations appliquées au clamp audio.
+
+```sh
+ga src/verifier/test_sensitivity.py \
+   src/verifier/SENSITIVITY.md \
+   src/verifier/MODULE.md \
+   src/verifier/STATE.md \
+   src/verifier/git.md
+gcmsg "verifier: documente la sensibilité du banc idempotent"
+```
+
+**Contient** : trois régressions sur min/max et branches, dont un clamp [0,2] admis par idempotence ;
+rejeu exact et analyse des mutants survivants. Aucune modification de production dans ce lot.
+Les fichiers MODULE/STATE/git portent aussi le lot de custody précédent : relire ses propositions.
+**Tests verts** : 164 ciblés ; suite complète **1 568 passed, 3 skipped, 7 warnings en 103,09 s** ; STATE et diff-check verts.
+**Exécuté** : —
+
+## Proposé le 15:09 — vérifier la projection exacte
+
+**Intention** : caractériser la projection sur [0, 1] dans un invariant appartenant au harness.
+
+```sh
+ga src/verifier/relations.py \
+   src/verifier/test_projection.py \
+   src/verifier/SENSITIVITY.md \
+   src/verifier/MODULE.md \
+   src/verifier/STATE.md \
+   src/verifier/git.md
+gcmsg "verifier: vérifie la projection exacte sur l’intervalle unité"
+```
+
+**Contient** : identité, saturation, sortie numérique bornée, idempotence ; onze exemples fixes
+complètent Hypothesis. Deux écritures correctes passent, 19 variantes incorrectes sont refusées.
+Les gates et les opérateurs de mutation restent inchangés. Prérequis : lot kernel unit_projection.
+MODULE/STATE/SENSITIVITY portent aussi les propositions antérieures ; composer leur staging après revue.
+**Tests verts** : suite complète **1 602 passed, 3 skipped, 7 warnings en 114,64 s**, Python 3.12.9 / pithos ; STATE et diff-check verts.
+**Exécuté** : —

@@ -37,10 +37,11 @@ il reste structurellement au-dessous de tout ce qui a des effets.
 ## 2. Interface publique
 
 ```python
-# relations — les 9 relations fermées, chacune rend un script exécutable
+# relations — les 10 relations fermées, chacune rend un script exécutable
 class Relation(str, Enum):
     round_trip = "round_trip"          # f(g(x)) == x
     idempotent = "idempotent"          # f(f(x)) == f(x)
+    unit_projection = "unit_projection" # projection exacte sur [0, 1], floats_finite
     commutes_with = "commutes_with"
     preserves = "preserves"
     invariant_under = "invariant_under"
@@ -106,7 +107,7 @@ significatives » de sortie pytest brute à un 8B.
 
 | Fichier | Contenu | ~L |
 |---|---|---:|
-| `relations.py` | les 9 relations, chacune rendant un script exécutable | 250 |
+| `relations.py` | les 10 relations, chacune rendant un script exécutable | 250 |
 | `domains.py` | dict fermé enum → stratégie Hypothesis | 100 |
 | `mutation.py` | ~5 opérateurs `ast.NodeTransformer` + `kill_check` | 200 |
 | `gates.py` | séquence d'acceptation, exécution subprocess, verdict typé | 150 |
@@ -138,7 +139,7 @@ Le double doit savoir rendre : un vert, un rouge avec contre-exemple minimal, un
 
 ## 8. Fini quand
 
-- [ ] Les 9 relations rendent un script qui s'exécute, avec un test par relation.
+- [ ] Les 10 relations rendent un script qui s'exécute, avec un test par relation.
 - [ ] Le script rendu est **écrit sur disque et conservé** comme artefact, chemin porté par le reçu.
 - [ ] Un invariant tautologique — vrai pour toute implémentation — est **rejeté**, test explicite.
 - [ ] Un invariant vert avant implémentation est **rejeté**, test explicite.
@@ -505,3 +506,43 @@ Le timeout de `run` comprend le contrôle des faits : seule sa durée restante e
 ### 12:09 — admission publique
 
 `Verifier.preflight(criterion, source)` compose les gardes pures de symboles et relation/domaine. Il n’écrit aucun artefact, ne lit pas la cible et ne lance rien ; engine l’appelle avant toute proposition ou mutation. Son double partage ces prédicats purs.
+
+## Décisions locales — 14:09 : exécuteur sous custody
+
+`CommandExecutor(command, *, directory, environment, timeout) -> int` est le port de lancement.
+`execution_scope(executor)` le lie au contexte courant et restaure la liaison en sortie, exception
+comprise. Toutes les gates passent par runner.execute ; les argv restent construits par verifier,
+les chemins sont ses copies exclusives, l'environnement reste minimal. L'exécuteur rend un code
+ou lève TimeoutExpired/OSError : il ne valide aucune propriété et n'émet aucun reçu.
+
+Le défaut local conserve la session isolée hors mission. La composition lie explicitement
+l'exécuteur lifecycle, sans importer ce module dans verifier. Chaque gate et ses descendants
+restant dans son groupe sont alors sous custody et sous la deadline de mission. Ce port n'ajoute
+pas de confinement contre du code hostile. Stack stdlib ajoutée : `contextlib`, `contextvars`.
+Double : `MemoryCommandExecutor`, sans I/O ; signature contrôlée et mutation détectée en contrat partagé.
+
+## Décisions locales — 15:09 : portée de la sensibilité
+
+Le rejeu de trial-44kcg6ig confirme trois mutants idempotents survivants. La cause fermée `tautology`
+signifie ici survie à l'inventaire disponible ; elle ne constitue pas une preuve universelle que la
+relation ne teste rien. Un kill ne prouve pas non plus des contraintes absentes du critère. Le corpus
+[test_sensitivity.py](test_sensitivity.py) constate l'acceptation d'une projection à branches sur [0, 2]
+par le critère idempotent du banc. Les gates restent conformes à leur contrat et inchangées.
+L'analyse et la commande de reproduction figurent dans [SENSITIVITY.md](SENSITIVITY.md).
+
+## Décisions locales — 15:09 : relation unit_projection
+
+Extension du contrat de validation autorisée par l'utilisateur après le diagnostic de sensibilité.
+`unit_projection` impose une sortie int/float (hors bool), bornée dans [0, 1], l'idempotence,
+l'identité pour x dans [0, 1], puis f(x) = f(0) sous 0 et f(x) = f(1) au-dessus de 1.
+Les comparaisons sont exactes, sans isclose. Le domaine est exclusivement floats_finite.
+
+Le script Hypothesis conserve son seed 0 et ses 100 exemples générés. Onze exemples explicites
+imposent les points fixes 0 et 1, 0,5, -1, 2, les voisins immédiats des bornes et les extrêmes
+finis binary64. Un échec explicite est conservé comme tel ; seuls les exemples générés passent
+par le shrinking. Les bornes, exemples et assertions sont produits par verifier, jamais par
+le modèle. Ce test fini ne constitue pas une preuve universelle sur tous les flottants.
+
+Les gates, opérateurs de mutation et conditions d'émission du reçu restent inchangés.
+`idempotent` garde son rendu sémantique ; les reçus existants ne sont pas requalifiés.
+`schema_conform` reste indisponible sans son binding déclaré ; cette extension ne l'implémente pas.

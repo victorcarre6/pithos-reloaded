@@ -3,6 +3,8 @@
 Copie libre accordée dans resources/MANIFEST.md ; pas de shell ni lecture du workspace.
 """
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 import hashlib
 import json
 import math
@@ -13,12 +15,55 @@ import subprocess
 import sys
 import tempfile
 import time
+from typing import Protocol, runtime_checkable
 
 from kernel.contracts import Criterion
 from kernel.errors import PithosError
 
 from .models import ExecutionResult
 from .relations import SEED, admit, render
+
+
+@runtime_checkable
+class CommandExecutor(Protocol):
+    def __call__(self, command: list[str], *, directory: Path,
+                 environment: dict[str, str], timeout: float) -> int: ...
+
+
+def local_command(command: list[str], *, directory: Path,
+                  environment: dict[str, str], timeout: float) -> int:
+    """Exécute une gate isolée hors mission ; la composition fournit la custody de mission."""
+
+    with (directory / "stdout.txt").open("ab") as stdout, (directory / "stderr.txt").open("ab") as stderr:
+        process = subprocess.Popen(command, cwd=directory, env=environment, stdin=subprocess.DEVNULL,
+                                   stdout=stdout, stderr=stderr, start_new_session=True)
+        try:
+            returncode = process.wait(timeout=timeout)
+        finally:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait()
+            for stream in (stdout, stderr):
+                stream.flush()
+                os.fsync(stream.fileno())
+
+    return returncode
+
+
+_executor = ContextVar("verifier_executor", default=local_command)
+
+
+@contextmanager
+def execution_scope(executor: CommandExecutor):
+    """Lie le port de lancement aux gates du contexte, sans modifier leur autorité."""
+
+    token = _executor.set(executor)
+    try:
+        yield
+    finally:
+        _executor.reset(token)
 
 
 def compact_failure_output(output: str, max_lines: int = 24, max_chars: int = 1800) -> str:
@@ -99,30 +144,13 @@ def execute(criterion: Criterion, source: str, *, artifact_root: Path, timeout: 
         # sorties vers fichiers : aucun pipe détenu par un descendant ne bloque wait
         command = [sys.executable, "-I", "-B", str(artifact)]
         environment = {"HYPOTHESIS_STORAGE_DIRECTORY": str(directory / "hypothesis")}
-        with (directory / "stdout.txt").open("xb") as stdout, (directory / "stderr.txt").open("xb") as stderr:
-            remaining = timeout - (time.monotonic() - started)
-            if remaining <= 0:
-                raise subprocess.TimeoutExpired(command, timeout)
-            process = subprocess.Popen(
-                command,
-                cwd=directory,
-                env=environment,
-                stdin=subprocess.DEVNULL,
-                stdout=stdout,
-                stderr=stderr,
-                start_new_session=True,
-            )
-            try:
-                returncode = process.wait(timeout=remaining)
-            finally:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                process.wait()
-                for stream in (stdout, stderr):
-                    stream.flush()
-                    os.fsync(stream.fileno())
+        for name in ("stdout.txt", "stderr.txt"):
+            _write_new(directory / name, "")
+        remaining = timeout - (time.monotonic() - started)
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(command, timeout)
+        executor = _executor.get()
+        returncode = executor(command, directory=directory, environment=environment, timeout=remaining)
 
         # seule une terminaison attestée du squelette fixe peut être verte ou rouge
         with (directory / "result.json").open("rb") as stream:

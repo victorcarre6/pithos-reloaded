@@ -1,5 +1,7 @@
 """Double déterministe de la double gate sur sources ; aucun processus ni fichier."""
 
+from pathlib import Path
+
 from kernel.contracts import Criterion
 from kernel.facts import Receipt, RecordKey
 from verifier.models import Verdict
@@ -46,3 +48,17 @@ class MemoryVerifier:
         receipt = self.receipts[key]
 
         return None if receipt is None else Receipt.model_validate_json(receipt.model_dump_json())
+
+
+class MemoryCommandExecutor:
+    """Rend un code de retour scripté sans produire le rapport d'invariant."""
+
+    def __init__(self, returncode=0):
+        self.returncode = returncode
+        self.calls = []
+
+    def __call__(self, command: list[str], *, directory: Path,
+                 environment: dict[str, str], timeout: float) -> int:
+        self.calls.append((command, directory, environment, timeout))
+
+        return self.returncode
