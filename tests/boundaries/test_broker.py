@@ -9,11 +9,11 @@ from tests.graph import imported_names, sources
 ROOT = SRC / "broker"
 
 ALLOWED = {
-    "datetime", "enum", "hashlib", "json", "os", "pathlib", "re", "subprocess", "typing", "uuid",
+    "datetime", "enum", "functools", "hashlib", "json", "math", "os", "pathlib", "re", "subprocess", "time", "typing", "uuid",
     "httpx", "pydantic", "journal", "journal.redact", "kernel.contracts", "kernel.errors",
     "kernel.facts",
 }
-LOCAL = {"git", "identity", "intent", "telegram"}
+LOCAL = {"finalize", "git", "identity", "intent", "telegram"}
 FORBIDDEN_MODULES = {"bridge", "campaign", "engine", "lifecycle", "observatory", "refinery", "verifier", "workspace"}
 
 

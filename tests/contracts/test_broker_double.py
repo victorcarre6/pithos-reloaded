@@ -101,3 +101,17 @@ def test_signature_mutation_reaches_the_contract(memory, monkeypatch):
     monkeypatch.setattr(memory, "repo_fact", lambda wrong: None)
     with pytest.raises(AssertionError):
         test_both_share_every_public_signature(memory)
+
+
+def test_finalizer_signatures(memory):
+    for name in ("reconcile", "finalize"):
+        expected = inspect.signature(getattr(broker.Finalizer, name))
+        assert inspect.signature(getattr(broker.GreenFinalizer, name)) == expected
+        assert inspect.signature(getattr(memory.MemoryGreenFinalizer, name)) == expected
+
+
+def test_finalizer_signature_mutation_is_detected(memory, monkeypatch):
+    test_finalizer_signatures(memory)
+    monkeypatch.setattr(memory.MemoryGreenFinalizer, "finalize", lambda self, wrong: None)
+    with pytest.raises(AssertionError):
+        test_finalizer_signatures(memory)

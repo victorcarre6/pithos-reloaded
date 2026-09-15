@@ -14,7 +14,7 @@ ROOT = SRC / "lifecycle"
 
 
 ALLOWED = {
-    "collections", "ctypes", "datetime", "enum", "hashlib", "json", "math", "multiprocessing", "os",
+    "collections", "ctypes", "datetime", "enum", "functools", "hashlib", "json", "math", "multiprocessing", "os",
     "pathlib", "signal", "struct", "subprocess", "time", "typing", "uuid", "kernel", "journal",
 }
 FORBIDDEN_MODULES = {"bridge", "broker", "campaign", "engine", "observatory", "refinery",
@@ -46,7 +46,7 @@ def test_the_scan_detects_an_injected_violation(source):
     assert imported_roots(source) - ALLOWED
 
 
-LOCAL = {"custody", "launchd", "lock", "process"}
+LOCAL = {"custody", "execution", "launchd", "lock", "process"}
 
 
 def violations(source):
