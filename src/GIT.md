@@ -59,3 +59,11 @@ La création de `TUI.md` et `GIT.md` est documentaire : contenu et liens locaux 
 nouvelle exécution de la suite métier.
 
 **Exécuté** : —
+
+## Lot du 15:09 — projection exacte
+
+Le changement de libellé du TUI et son critère partagé sont proposés une seule fois dans
+[experiments/visualizer/git.md](../experiments/visualizer/git.md), lot « utiliser le critère
+de projection exacte ». Ses contrôles CLI et les critères de reprise sont dans
+[tests/git.md](../tests/git.md). Suite finale : 1 602 passed, 3 skipped, 7 warnings en 114,64 s.
+Aucune commande Git d'écriture exécutée.

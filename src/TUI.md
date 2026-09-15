@@ -1,6 +1,6 @@
 # TUI — entrée Pithos
 
-**Mise à jour** : 13:09
+**Mise à jour** : 15:09
 **État** : livré pour les commandes du banc audio ; une nano-étape par `trial`.
 
 [`main.py`](main.py) lance Pithos avec quatre panneaux fixes. Il partage le parseur et
@@ -48,6 +48,10 @@ préparation sont dans le [README du banc](../experiments/visualizer/README.md).
 | `--no-tui` | Désactive le TUI ; accepté avant ou après la sous-commande |
 
 L'ancien lanceur `python experiments/visualizer/run.py …` reste disponible avec sa sortie JSON.
+
+Le banc utilise désormais `unit_projection` pour les nouveaux essais. Le panneau Projet
+affiche « projection [0, 1] » ; le rapport JSON expose le critère exact. Les résultats de
+validation du 13:09 ci-dessous restent historiques.
 
 ## Lire les panneaux
 
