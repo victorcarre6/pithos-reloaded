@@ -1,13 +1,13 @@
 # STATE — `broker`
 
 **Statut** : bloqué
-**Mise à jour** : 12:09
-**Lignes** : 414 code / 550 cible · 749 physiques
-**Empreinte** : 22cfa7cdd5549e3a4dfd3b7cda77068ef6875377fbf81824ae8000b8952a9f9f
+**Mise à jour** : 14:09
+**Lignes** : 577 code / 550 cible · 943 physiques
+**Empreinte** : 229052f3df4d25e85eb83c0d1007b6a843e3f5fe32df9aea56655c55b7fcb1a6
 
 ## Prochaine action
 
-RepoFact canonique et complétude sont livrés. Définir le propriétaire de la boucle de polling Telegram (campaign est le candidat compatible avec les dépendances) avant de raccorder poll/saved_offset/remember_offset ; ne pas importer lifecycle ici.
+GreenFinalizer et sa composition sont livrés. Définir le propriétaire de la boucle de polling Telegram (campaign est le candidat compatible avec les dépendances) avant de raccorder poll/saved_offset/remember_offset ; ne pas importer lifecycle ici. Aucun élargissement Telegram n’a été introduit dans cette unité.
 
 ## Avancement
 
@@ -322,3 +322,55 @@ La dernière commande ciblant **tout broker**, plutôt que Git seul, a donné **
 Suite complète finale dans **pithos / Python 3.12.9** : **1 367 passed, 3 skipped, 7 warnings en 37,10 s**. Relance broker hors sandbox : **114 passed en 1,99 s** ; les 21 erreurs de bind sont résolues sans skip.
 Les contrôles d'en-têtes STATE et `git diff --check` passent. Aucune dépendance installée, aucun Git d'écriture, aucun bytecode suivi modifié. Les propositions sont dans les git.md ; les contrats transverses ont leur lot dans tests/git.md.
 **Niveau de preuve : 5**, avec subprocess et fichiers de test effectivement exercés. Le marcheur complet et le premier vert avec modèle local restent à démontrer. La source candidate attend l'arbitrage utilisateur.
+
+### 14:09 — GreenFinalizer, admission et réconciliation locale
+
+Demande explicite : GreenFinalize puis composition lifecycle. Test initial rouge à la collecte :
+`broker.finalize` absent (0,30 s). Première implémentation : 15 passed, 1 warning en 2,12 s.
+Après gardes et double : **45 passed en 2,95 s** (publication, contrat et frontière broker).
+Le warning venait d'un enum injecté sans validation dans le test ; il est corrigé.
+Commit réel sur dépôt jetable, perte d'acquittement et projection JSON indisponible : un seul
+commit, reconnu par parent, chemin, octets, reçu et identité complète de vérification.
+Une intention durable précède l'effet ; un reçu absent, un dépôt divergent, des attributs Git
+ou une deadline épuisée refusent la publication. Hooks/signature/maintenance désactivés.
+Aucune commande Git d'écriture exécutée sur le dépôt de développement ni la campagne.
+
+**Plafond justifié** : 577 code
+**Justification** : 163 lignes de code supplémentaires pour le port de publication, la preuve durable,
+la réconciliation après coupure et les commandes sous deadline ; dépassement global de 27 lignes.
+Aucun client réseau ou dépendance ajouté. Suite racine encore à lancer pour cette unité.
+**Niveau de preuve : 5**, journal officiel simulé ; effets Git locaux mesurés, pas de push ni PR.
+
+### 14:09 — unité broker vérifiée
+
+Suite racine hors sandbox : **1 534 passed, 3 skipped, 7 warnings en 60,35 s**.
+Les trois skips concernent les files de scénario absentes des implémentations réelles bridge,
+campaign et refinery ; warnings Starlette/httpx et anciens tests fork après threads.
+**Niveau de preuve : 5** ; passage à la composition lifecycle sans nouvelle autorité réseau.
+
+### 14:09 — livraison intégrée vérifiée
+
+Suite complète finale : **1 548 passed, 3 skipped, 7 warnings en 87,81 s**, Python **3.12.9 / pithos**,
+hors sandbox. Les trois skips existants restent bridge:77, campaign:170, refinery:82 (scénarios
+propres aux doubles) ; warnings Starlette/httpx et les six anciens forks après threads.
+Contrôle des onze STATE et `git diff --check` verts. Aucun paquet installé, aucun Git d'écriture
+sur le harness ou le dépôt de campagne, aucun service opérateur sollicité, dashboard intact.
+Les effets Git réels sont limités aux dépôts temporaires des tests. Le test d'intégration garde
+le modèle simulé : le premier vert Ollama reste à démontrer, trial-44kcg6ig demeure négatif.
+**Niveau de preuve : 5 pour la mission complète**, **6 limité aux composants locaux** effectivement
+exercés. La commande et la reprise sur même --run sont décrites dans experiments/visualizer/README.md.
+
+### 14:09 — état sûr en attente d'extension de périmètre
+
+Après suspension de l'entrée opérateur : suite complète **1 549 passed, 3 skipped, 7 warnings en
+89,05 s**, pithos/Python 3.12.9. Le nouveau test constate le refus AVANT création de preuves ou
+worker. STATE et diff-check verts. Cette suite ne résout pas la sonde négative du groupe détaché
+(1 failed en 2,22 s) : la composition reste suspendue et l'accord src/verifier reste en attente.
+GreenFinalizer demeure livrable indépendamment ; les propositions de composition restent suspendues.
+
+### 14:09 — finaliseur revérifié avec custody des gates
+
+Le raccordement verifier/lifecycle et la CLI réelle reprennent le même commit vert sans nouvel
+appel modèle. Suite complète **1 556 passed, 3 skipped, 7 warnings en 100,50 s**, Python 3.12.9/pithos ; STATE et diff-check verts.
+Le lot GreenFinalizer reste indépendant du blocage Telegram ; aucun push ni commit opérateur effectué.
+**Niveau de preuve : 5 pour la composition**, 6 limité aux effets Git sur dépôts temporaires.

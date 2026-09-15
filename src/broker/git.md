@@ -149,3 +149,30 @@ pour les FileFact absolus : racine explicite, refus hors dépôt, aucun diff inv
 broker : **114 passed en 1,99 s** hors sandbox ; suite globale **1 367 passed, 3 skipped, 7 warnings en 37,10 s**.
 La tentative refusée par la sandbox (93 passed, 21 erreurs de bind) reste consignée dans STATE.
 **Exécuté** : —
+
+## Proposé le 14:09 — finalisation verte réconciliable
+
+**Intention** : publier une modification attestée une seule fois malgré une perte d'acquittement.
+
+```sh
+ga src/broker/finalize.py \
+   src/broker/test_finalize.py \
+   src/broker/__init__.py \
+   tests/doubles/broker.py \
+   src/broker/MODULE.md \
+   src/broker/STATE.md \
+   src/broker/git.md
+gcmsg "broker: réconcilie les commits verts sous deadline"
+```
+
+**Contient** : port, adaptateur Git local, preuve durable, deadline partagée et double.
+**Tests verts** : 45 tests ciblés ; suite racine 1 534 passed, 3 skipped, 7 warnings.
+Le contrat/frontière partagé possède son lot dans tests/git.md.
+**Exécuté** : —
+
+### Complément le 14:09 — preuve finale de composition
+
+Les mêmes chemins proposés incluent les dernières gardes et les STATE à jour. Suite finale :
+**1 548 passed, 3 skipped, 7 warnings en 87,81 s** ; contrôle des onze STATE et diff-check verts.
+Les lots broker, lifecycle, experiment et leur support partagé tests forment l'état vérifié ensemble.
+Aucun commit ni push exécuté par l'agent.

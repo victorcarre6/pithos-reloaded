@@ -10,7 +10,7 @@ from pathlib import Path
 from broker.git import Change, PullRequest, RepoFact
 from broker.telegram import Command
 from kernel.errors import Cause, PithosError
-from kernel.facts import FileFact
+from kernel.facts import FileFact, Receipt, RecordKey
 
 files: dict[Path, str] = {}
 history: list[dict] = []
@@ -131,3 +131,32 @@ def poll(offset: int) -> tuple[list[Command], int]:
     highest = max([command.update_id for command in fresh], default=offset - 1)
 
     return fresh, max(offset, highest + 1)
+
+
+class MemoryGreenFinalizer:
+    """Publication scriptée ; le résultat et sa perte d'acquittement restent observables."""
+
+    def __init__(self, result: RepoFact):
+        self.result = result
+        self.published = {}
+        self.calls = []
+        self.lose_ack = False
+
+    def reconcile(self, key: RecordKey, receipt: Receipt, timeout: float) -> RepoFact | None:
+        self.calls.append(("reconcile", key, timeout))
+        saved = self.published.get(key.value)
+        if saved is not None and saved[0] != receipt:
+            raise ValueError("publication identity has conflicting receipts")
+
+        return None if saved is None else saved[1]
+
+    def finalize(self, key: RecordKey, receipt: Receipt, timeout: float) -> RepoFact:
+        found = self.reconcile(key, receipt, timeout)
+        if found is not None:
+            return found
+        self.calls.append(("finalize", key, timeout))
+        self.published[key.value] = (receipt, self.result)
+        if self.lose_ack:
+            raise TimeoutError("publication acknowledgement lost")
+
+        return self.result

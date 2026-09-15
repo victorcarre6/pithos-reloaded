@@ -8,6 +8,7 @@ connaît pas la boucle.
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from .finalize import Finalizer, GreenFinalizer
 from .git import Change, PullRequest, RepoFact, automerge, commit, open_pr, preflight, repo_fact
 from .identity import Effect, EffectIdentity, new_identity, result_key, same_result, transport_key
 from .intent import Stage, read_ledger, record_intent, record_result, resume, stage
@@ -15,6 +16,7 @@ from .telegram import Command, CommandKind, TelegramRequestRejected, TelegramTra
 from .telegram import chunks, is_stale, notify, poll, relay, remember_offset, retry_delay, saved_offset
 
 __all__ = [
+    "Finalizer", "GreenFinalizer",
     "Broker", "Change", "Command", "CommandKind", "Effect", "EffectIdentity", "PullRequest",
     "RepoFact", "Stage", "TelegramRequestRejected", "TelegramTransportError", "automerge",
     "chunks", "commit", "is_stale", "new_identity", "notify", "open_pr", "poll", "preflight",

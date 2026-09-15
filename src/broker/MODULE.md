@@ -10,7 +10,7 @@
 **Cible** : ~550 L · réemploi assumé de v1 · ratchet **shrink-only**
 **Dépend de** : `kernel`, `journal`.
 **Niveau de dépendance** : 2.
-**Stack** : `subprocess` + CLI `gh` · `httpx` pour Telegram. **Pas de GitPython.**
+**Stack** : `subprocess` + CLI `gh` · `httpx` pour Telegram ; `time`, `math`, `functools` pour la deadline partagée. **Pas de GitPython.**
 
 ## 1. Autorité
 
@@ -297,3 +297,22 @@ Ce fait n’est pas un snapshot atomique contre des écrivains non coopérants :
 reste requise, et verifier croise les autres observations. Les commandes sortantes restent inchangées.
 
 Le helper de scénario du double `agree_with(fact, repo=...)` accepte les FileFact absolus grâce à une racine explicite ; il ne résout aucun chemin sur disque et ne fabrique pas de diff complet.
+
+## Décisions locales — 14:09 — finalisation verte
+
+`Finalizer` publie `reconcile(key, receipt, timeout)` et `finalize(...)`. `GreenFinalizer` est
+l'adaptateur du port engine, sans import de engine. La composition détient le verrou du dépôt.
+`timeout` est un temps restant monotone partagé entre toutes les commandes Git. Le journal peut
+encore bloquer au niveau filesystem : la borne de processus appartient à lifecycle.
+
+Le reçu durable doit attester exactement FileFact/SourceFact/RepoFact et une modification suivie
+mono-fichier. L'identité de commit inclut la relation du RecordKey et le digest du reçu ; sa branche,
+son parent et ses octets doivent rester observables. Les attributs Git sont refusés pour préserver
+les octets ; `git commit --only` évite de publier un autre chemin de l'index. Voir la
+[documentation Git](https://git-scm.com/docs/git-commit) et les
+[attributs Git](https://git-scm.com/docs/gitattributes).
+
+Le registre JSON est une projection. Une intention enregistrée sans résultat est interrogée avant
+rejeu ; un commit étranger, une branche changée ou une projection contradictoire bloquent.
+Un index.lock laissé par une interruption reste à diagnostiquer, jamais supprimé automatiquement.
+La finalisation ne pousse rien. Le double MemoryGreenFinalizer simule une perte d'acquittement.
