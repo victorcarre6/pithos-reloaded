@@ -439,3 +439,161 @@ gcmsg "docs: consigne les preuves de l'observatoire"
 **Contient** : Commandes locales, résultat réel négatif, limites de preuve, décisions J/K et références relues. Aucun dépôt tiers ni artefact brut inclus. Les documents partagés portent aussi les travaux antérieurs et l'entrée TUI : composer leurs propositions avant staging.
 **Tests verts** : Contrôle des interfaces et des STATE, revue des liens et du diff ; huit tests web et build verts. Suite complète : **1 444 passed, 3 skipped, 7 warnings en 43,83 s**, Python 3.12.9/pithos ; contrôle des onze STATE vert.
 **Exécuté** : —
+
+## Proposé le 14:09 — contrats et preuve de composition
+
+**Intention** : vérifier les ports de finalisation et de supervision sur leurs doubles et leur composition locale.
+
+```sh
+ga tests/boundaries/test_broker.py \
+   tests/boundaries/test_lifecycle.py \
+   tests/contracts/test_broker_double.py \
+   tests/contracts/test_lifecycle_double.py \
+   tests/test_visualizer_mission.py \
+   tests/STATE.md \
+   tests/git.md
+gcmsg "tests: vérifie la composition de mission et ses ports"
+```
+
+**Contient** : imports stdlib et fichiers locaux explicitement permis, signatures mordantes,
+Git/Prefect locaux, reprise sans double commit, coupure et sweep d'orphelin.
+**Tests verts** : suite complète **1 548 passed, 3 skipped, 7 warnings en 87,81 s** ; STATE et diff-check.
+Ces fichiers sont le complément nécessaire des lots broker, lifecycle et experiment proposés dans
+leurs git.md ; l'état vérifié contient les quatre lots ensemble. Aucun interdit métier n'est levé.
+**Exécuté** : —
+
+## Proposé le 14:09 — point de reprise de la composition
+
+**Intention** : rendre l'état de la mission composée et ses limites immédiatement reprenables.
+
+```sh
+ga src/engine/STATE.md \
+   docs/QUICK_CATCH.md \
+   docs/ROADMAP.md \
+   docs/EXPLANATIONS.md
+gcmsg "docs: consigne la mission composée et ses preuves"
+```
+
+**Contient** : résolution des blocages de composition engine, mesures courantes, commandes et suite.
+**Tests verts** : suite complète **1 548 passed, 3 skipped, 7 warnings en 87,81 s** ; STATE et diff-check.
+**Exécuté** : —
+
+### Suspension le 14:09 — contre-preuve des groupes verifier
+
+Les propositions de composition ci-dessus attendent la correction décrite dans STATE : un invariant
+lancé dans sa propre session survit au watchdog du worker (sonde : 1 failed en 2,22 s). La suite
+racine verte ne couvrait pas ce cas. Le lot broker indépendant reste vérifié ; aucun commit exécuté.
+
+### Suspension levée le 14:09 — custody des gates vérifiée
+
+L'extension à verifier est autorisée et livrée. Le test coupe un invariant réel et son descendant ;
+le sweep après mort du superviseur et la reprise de la CLI réelle passent. Suite complète **1 556 passed, 3 skipped, 7 warnings en 100,50 s**,
+Python 3.12.9/pithos ; STATE et diff-check verts. Les mêmes chemins proposés incluent la correction
+et leurs preuves actualisées. Le lot verifier ajouté ce jour est un prérequis à la composition ;
+les lots lifecycle, experiment et tests partagés se relisent ensemble. Aucun commit exécuté.
+
+## Proposé le 14:09 — contrat du lancement sous custody
+
+**Intention** : vérifier la conformité des exécuteurs réel, local et simulé au port de verifier.
+
+```sh
+ga tests/contracts/test_verifier_double.py \
+   tests/boundaries/test_verifier.py \
+   tests/git.md
+gcmsg "tests: vérifie le port de lancement des invariants"
+```
+
+**Contient** : signatures exactes, mutation effectivement détectée, double sans I/O et autorisation
+ciblée de contextlib/contextvars ; les imports entre modules restent interdits. La preuve de vraie
+gate coupée est dans tests/test_visualizer_mission.py, déjà listé au lot de composition ci-dessus.
+**Tests verts** : suite complète **1 556 passed, 3 skipped, 7 warnings en 100,50 s**, Python 3.12.9/pithos ; STATE et diff-check.
+**Exécuté** : —
+
+## Proposé le 15:09 — compléter les contrats de mission partagés
+
+**Intention** : vérifier les ports du cycle de mission dans le corpus partagé.
+
+```sh
+ga tests/contracts/test_engine_double.py \
+   tests/STATE.md \
+   tests/git.md
+gcmsg "tests: complète les contrats partagés de mission"
+```
+
+**Contient** : contrats NanoEngine/Walker/MissionRunner/GreenFinalizer, mutations de signatures et
+rejeu indépendant sans I/O. La compatibilité finale croise broker réel et les doubles engine/broker.
+**Tests verts** : 164 ciblés ; suite complète **1 568 passed, 3 skipped, 7 warnings en 103,09 s** ; STATE et diff-check verts.
+**Exécuté** : —
+
+## Proposé le 15:09 — limiter l'exception de frontière de flow
+
+**Intention** : soumettre flow.py au scanner commun en n'autorisant que Prefect en supplément.
+
+```sh
+ga tests/boundaries/test_engine.py \
+   tests/test_boundary_scans.py \
+   tests/git.md
+gcmsg "tests: limite l'exception de frontière de flow"
+```
+
+**Contient** : suppression de la dispense globale et injection dans flow.py comme dans chaque fichier.
+**Tests verts** : 164 ciblés ; suite complète **1 568 passed, 3 skipped, 7 warnings en 103,09 s** ; STATE et diff-check verts.
+**Exécuté** : —
+
+## Proposé le 15:09 — actualiser la reprise après consolidation
+
+**Intention** : consigner les limites prouvées du banc et les ports désormais vérifiés.
+
+```sh
+ga src/engine/STATE.md \
+   docs/QUICK_CATCH.md \
+   docs/ROADMAP.md \
+   docs/EXPLANATIONS.md \
+   tests/git.md
+gcmsg "docs: consigne la sensibilité et les contrats de mission"
+```
+
+**Contient** : prochaine action lifecycle, sensibilité reproduite, consolidation terminée et mesures.
+Ces documents partagés portent aussi les lots précédents non commités, à composer avant staging.
+**Tests verts** : suite complète **1 568 passed, 3 skipped, 7 warnings en 103,09 s** ; STATE et diff-check verts.
+**Exécuté** : —
+
+## Proposé le 15:09 — éprouver le critère exact dans le banc
+
+**Intention** : vérifier le contrat unit_projection de la frontière modèle jusqu'au reçu repris.
+
+```sh
+ga tests/contracts/test_bridge_double.py \
+   tests/test_main.py \
+   tests/test_visualizer_trial.py \
+   tests/test_visualizer_mission.py \
+   tests/STATE.md \
+   tests/git.md
+gcmsg "tests: couvre la projection exacte et les critères historiques"
+```
+
+**Contient** : schéma fermé sur bridge/double, reçu unit_projection, rollback de [0, 2],
+conservation d'un ancien reçu idempotent après finalisation/reprise, refus des critères étrangers.
+Les cas de mission portent aussi les lots de custody précédents ; relire leurs propositions.
+**Tests verts** : suite complète **1 602 passed, 3 skipped, 7 warnings en 114,64 s**, Python 3.12.9 / pithos ; STATE et diff-check verts.
+**Exécuté** : —
+
+## Proposé le 15:09 — consigner le premier vert réel
+
+**Intention** : documenter la preuve observée du premier essai Ollama accepté.
+
+```sh
+ga README.md \
+   docs/QUICK_CATCH.md \
+   docs/ROADMAP.md \
+   docs/EXPLANATIONS.md \
+   tests/git.md
+gcmsg "docs: consigne le premier vert ollama sous unit_projection"
+```
+
+**Contient** : amendement du catalogue fermé, trial-25ugxn94, reçu durable, effet confirmé,
+mesures et limites, correction de la course zombie et prochaines actions. Le fichier vert
+reste non commité dans le dépôt d'essai. Ces documents portent aussi les travaux précédents :
+relire leur diff complet avant staging. Aucun artefact brut ni dépôt tiers proposé.
+**Tests verts** : suite complète **1 602 passed, 3 skipped, 7 warnings en 114,64 s**, Python 3.12.9 / pithos ; STATE et diff-check verts.
+**Exécuté** : —

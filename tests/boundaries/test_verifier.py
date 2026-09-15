@@ -16,7 +16,7 @@ ROOT = SRC / "verifier"
 
 
 ALLOWED = {
-    "ast", "copy", "datetime", "hashlib", "hypothesis", "json", "math", "os", "pathlib",
+    "ast", "contextlib", "contextvars", "copy", "datetime", "hashlib", "hypothesis", "json", "math", "os", "pathlib",
     "re", "signal", "subprocess", "sys", "tempfile", "textwrap", "time", "typing", "pydantic", "journal", "kernel",
 }
 LOCAL = {"gates", "models", "protocol", "receipt", "domains", "runner", "relations", "mutation"}

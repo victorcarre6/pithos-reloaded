@@ -66,3 +66,37 @@ def test_signature_mutation_reaches_the_contract(monkeypatch):
     monkeypatch.setattr(memory, "check_sources", lambda wrong: None)
     with pytest.raises(AssertionError):
         assert_protocol_and_signatures(memory)
+
+
+def assert_command_executors(memory):
+    from lifecycle.execution import run_command
+    from verifier.runner import local_command
+
+    expected = inspect.signature(verifier.CommandExecutor.__call__)
+    expected = expected.replace(parameters=list(expected.parameters.values())[1:])
+    for executor in (local_command, run_command, memory):
+        assert isinstance(executor, verifier.CommandExecutor)
+        assert inspect.signature(executor) == expected
+
+
+def test_command_executor_signatures():
+    assert_command_executors(_load_double("verifier").MemoryCommandExecutor())
+
+
+def test_command_executor_signature_mutation(monkeypatch):
+    memory = _load_double("verifier")
+    assert_command_executors(memory.MemoryCommandExecutor())
+    monkeypatch.setattr(memory.MemoryCommandExecutor, "__call__", lambda self, wrong: 0)
+    with pytest.raises(AssertionError):
+        assert_command_executors(memory.MemoryCommandExecutor())
+
+
+def test_command_executor_double_does_not_launch(tmp_path, monkeypatch):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("double performed I/O")
+
+    monkeypatch.setattr(Path, "open", forbidden)
+    monkeypatch.setattr(subprocess, "Popen", forbidden)
+    memory = _load_double("verifier").MemoryCommandExecutor(20)
+    assert memory(["program"], directory=tmp_path, environment={}, timeout=1) == 20
+    assert memory.calls == [(["program"], tmp_path, {}, 1)]
